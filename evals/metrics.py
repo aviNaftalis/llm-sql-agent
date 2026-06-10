@@ -8,6 +8,7 @@ the accuracy / speed / token figures the harness reports and plot.py charts.
 from __future__ import annotations
 
 import math
+from itertools import permutations
 
 from llm_sql_agent import db
 
@@ -29,16 +30,48 @@ def _execute(db_path: str, sql: str) -> list[tuple] | None:
     return _normalize(res.rows)
 
 
+def _is_ordered(gold_sql: str) -> bool:
+    """Row order matters only for top-N answers (ORDER BY *and* LIMIT). A bare
+    ORDER BY is presentational, so we compare those order-insensitively."""
+    low = gold_sql.lower()
+    return "order by" in low and "limit" in low
+
+
 def execution_accuracy(db_path: str, gold_sql: str, pred_sql: str | None) -> bool:
+    """True if the gold result set is reproducible from the predicted one.
+
+    Robust to two harmless differences a free-forming model introduces:
+      * extra columns — the gold relation must be a *projection* of the predicted
+        relation (some subset of predicted columns, in some order, equals gold);
+      * row order — compared as a multiset unless the gold query is a top-N
+        (ORDER BY + LIMIT), where order is part of the answer.
+    """
     if not pred_sql:
         return False
-    gold_rows = _execute(db_path, gold_sql)
-    pred_rows = _execute(db_path, pred_sql)
-    if gold_rows is None or pred_rows is None:
+    gold = _execute(db_path, gold_sql)
+    pred = _execute(db_path, pred_sql)
+    if gold is None or pred is None:
         return False
-    if "order by" in gold_sql.lower():
-        return gold_rows == pred_rows
-    return sorted(map(repr, gold_rows)) == sorted(map(repr, pred_rows))
+    if len(gold) == 0:
+        return len(pred) == 0
+    if not pred:
+        return False
+
+    n_gold, n_pred = len(gold[0]), len(pred[0])
+    if n_pred < n_gold:
+        return False
+    ordered = _is_ordered(gold_sql)
+
+    # Find an injective column mapping (a projection of pred) that reproduces gold.
+    # Column counts are tiny, so the permutation search is cheap.
+    for combo in permutations(range(n_pred), n_gold):
+        proj = [tuple(row[i] for i in combo) for row in pred]
+        if ordered:
+            if proj == gold:
+                return True
+        elif sorted(map(repr, proj)) == sorted(map(repr, gold)):
+            return True
+    return False
 
 
 def percentile(values: list[float], p: float) -> float:

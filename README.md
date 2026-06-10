@@ -77,8 +77,18 @@ The orchestration that makes it production-grade:
 
 The eval set (`data/eval_set.jsonl`) is 35 graded questions. The metric is
 **execution accuracy** (`evals/metrics.py`): run the gold and predicted queries
-and compare result sets — order-insensitive unless the gold query has a top-level
-`ORDER BY`. The harness also records p50/p95 latency, step count, tokens, and USD.
+and compare result sets. It's deliberately robust to two harmless ways a
+free-forming model differs from the gold SQL, so it measures *correctness*, not
+phrasing:
+
+- **extra columns** — the gold result must be a *projection* of the predicted
+  result (a model that returns the answer plus an extra `id` column still counts);
+- **row order** — compared as a multiset, except for top-N questions (`ORDER BY`
+  + `LIMIT`) where order is part of the answer.
+
+The harness also records p50/p95 latency, step count, tokens, and USD. Re-score
+saved runs against the current metric with `python -m evals.rescore` (no new API
+calls).
 
 **Tested deterministically, no key required.** `tests/test_agent_loop.py` drives
 the agent loop with a scripted LLM double (`tests/fakes.py`) over complex
