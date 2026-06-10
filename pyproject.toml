@@ -13,10 +13,9 @@ dependencies = [
     "matplotlib>=3.7",
 ]
 
+# The Claude backend shells out to the `claude` CLI (no API key, no SDK), so the
+# only optional group is dev/test tooling.
 [project.optional-dependencies]
-# Real LLM backends (the mock backend needs none of these).
-anthropic = ["anthropic>=0.40"]
-# Dev / test.
 dev = ["pytest>=7.4"]
 
 [project.scripts]

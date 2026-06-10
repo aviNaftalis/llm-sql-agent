@@ -14,7 +14,10 @@ import sys
 from llm_sql_agent.config import RESULTS_DIR
 from llm_sql_agent.dataset import SHOWCASE_IDS, get_question, load_eval_set
 
-REC_ROWS = os.environ.get("REC_ROWS", "60")  # complex traces are long
+REC_ROWS = os.environ.get("REC_ROWS", "46")  # complex traces are long
+# There's a lot to read in the final trace, so hold it on screen.
+IDLE = os.environ.get("AGG_IDLE", "3")
+LAST_FRAME = os.environ.get("AGG_LAST_FRAME", "14")
 
 
 def main() -> int:
@@ -32,7 +35,7 @@ def main() -> int:
         )
         subprocess.run(
             ["agg", "--theme", "monokai", "--font-size", "16",
-             "--idle-time-limit", "1", "--last-frame-duration", "4", cast, gif],
+             "--idle-time-limit", IDLE, "--last-frame-duration", LAST_FRAME, cast, gif],
             check=True,
         )
         print(f"wrote {gif}")

@@ -95,10 +95,6 @@ def main(argv: list[str] | None = None) -> int:
     if not os.path.exists(settings.db_path):
         print(f"Database not found at {settings.db_path}. Run `make db` first.", file=sys.stderr)
         return 2
-    if settings.provider == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
-        print("ANTHROPIC_API_KEY is not set. Put it in a .env file at the repo root.",
-              file=sys.stderr)
-        return 2
 
     all_items = load_eval_set()
     if args.ids:

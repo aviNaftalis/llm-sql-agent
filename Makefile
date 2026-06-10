@@ -39,8 +39,8 @@ $(VENV):
 .PHONY: setup
 setup: $(VENV)
 	$(PIP) install --upgrade pip
-	$(PIP) install -e ".[anthropic,dev]"
-	@echo "Setup complete. Add ANTHROPIC_API_KEY to .env, then: make db && make eval"
+	$(PIP) install -e ".[dev]"
+	@echo "Setup complete (uses the local \`claude\` CLI, no API key). Next: make db && make eval"
 
 .PHONY: db
 db:
@@ -78,7 +78,7 @@ demos:
 gif:
 	@command -v agg >/dev/null || { echo "agg not found. Install: https://github.com/asciinema/agg/releases (single static binary, no root)"; exit 1; }
 	$(PYTHON) scripts/record_demo.py results/demo.cast $(PYTHON) -m llm_sql_agent.cli ask "Total profit per category for completed orders, where profit = quantity * (unit_price - cost)."
-	agg --theme monokai --font-size 16 --idle-time-limit 1 --last-frame-duration 4 results/demo.cast results/demo.gif
+	agg --theme monokai --font-size 16 --idle-time-limit 3 --last-frame-duration 14 results/demo.cast results/demo.gif
 	@echo "Wrote results/demo.gif"
 
 .PHONY: tape

@@ -94,44 +94,42 @@ calls).
 the agent loop with a scripted LLM double (`tests/fakes.py`) over complex
 multi-join / CTE / window-function questions and asserts it recovers from an
 injected error and lands on a correct, executing query — and that speed/token
-metrics are recorded. `tests/test_smoke_real.py` is a **key-gated** smoke test that
-runs the real Claude backend and checks it produces valid, executing SQL (skipped
-when `ANTHROPIC_API_KEY` is unset, so the offline suite stays green).
+metrics are recorded. `tests/test_smoke.py` is a smoke test that runs the real
+Claude backend and checks it produces valid, executing SQL (auto-skipped when the
+`claude` CLI isn't on PATH, so the offline suite stays green in CI).
 
-## Backends
+## Backend
 
 One normalized interface (`src/llm_sql_agent/llm/base.py`); the agent and eval
 code are backend-agnostic.
 
 | Backend | Status | Notes |
 |---|---|---|
-| `anthropic` | ✅ default | Claude via the Messages API with **native tool-use**. `claude-opus-4-8` by default; `LLM_MODEL=claude-sonnet-4-6` for a cheaper run. Clean token/cost accounting. |
-| `claude_cli` | ✅ | Claude via the local **`claude` CLI** (`claude -p`) — **no API key**, uses your Claude Code login. Drives the agent with a JSON-action protocol instead of native tool-use. The demo GIFs above were generated this way. (Token/cost figures include the CLI's own context overhead, so use `anthropic` for representative cost numbers.) |
-| `ollama` | 🟡 roadmap | Local models, no key/cost. Shipped as a documented stub — the interface and tool registry are designed so it drops in with no changes elsewhere. |
+| `anthropic` | ✅ default | Claude, reached through the local **`claude` CLI** (`claude -p`) — **no API key**, runs on your Claude Code login. Model via `LLM_MODEL` (`claude-opus-4-8` default; `claude-haiku-4-5` for the comparison). The CLI returns text, so the agent is driven with a JSON-action protocol rather than native `tool_use` blocks. |
+| `ollama` | 🟡 roadmap | Local open models. Shipped as a documented stub — the interface and tool registry are designed so it drops in with no changes elsewhere. |
+
+> **On token/cost numbers:** because the backend goes through the `claude` CLI,
+> reported tokens/USD include the CLI's own context overhead and aren't a clean
+> measure of the agent's own usage. **Accuracy and step count are the meaningful
+> axes** in the results below.
 
 ## Quick start
 
-Two ways to authenticate:
-
-- **API key** — put `ANTHROPIC_API_KEY=sk-ant-...` in a `.env` file at the repo
-  root (see `.env.example`); it's loaded automatically. Uses the `anthropic`
-  backend (native tool-use, clean cost accounting).
-- **No key** — if you have the [`claude` CLI](https://docs.claude.com/en/docs/claude-code)
-  logged in, set `LLM_PROVIDER=claude_cli` and skip the key entirely.
+**No API key.** The only requirement is the
+[`claude` CLI](https://docs.claude.com/en/docs/claude-code) installed and logged
+in — the backend runs on your Claude Code session.
 
 ```bash
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env   # or: export LLM_PROVIDER=claude_cli
-
-make setup        # venv + install
+make setup        # venv + install (no LLM SDK; the claude CLI is the backend)
 make db           # build the deterministic SQLite database
-make test         # offline suite (real-backend smoke test auto-skips)
+make test         # offline suite (real-backend smoke test auto-skips if no claude CLI)
 make eval         # naive-vs-agent benchmark → table + charts
 make compare      # benchmark Opus 4.8 vs Haiku 4.5 → comparison chart
 make demos        # render the 3 showcase demo GIFs (needs `agg`)
 make demo         # one live trace in the terminal
 ```
 
-Cheaper model: `make eval MODEL=claude-sonnet-4-6`.
+Pick a model: `make eval MODEL=claude-haiku-4-5`.
 
 Charts land in `results/` as PNGs. On WSL, view them with
 `explorer.exe results\accuracy.png`; on Linux/macOS use `xdg-open` / `open`.

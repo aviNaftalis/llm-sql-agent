@@ -24,5 +24,5 @@ Type "make demo"
 Sleep 600ms
 Enter
 
-# Give the trace time to render before the GIF loops.
-Sleep 7s
+# Give the trace time to render, then hold it — there's a lot to read.
+Sleep 16s

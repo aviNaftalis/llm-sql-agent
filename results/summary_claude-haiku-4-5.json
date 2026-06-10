@@ -1,0 +1,93 @@
+{
+  "provider": "claude_cli",
+  "model": "claude-haiku-4-5",
+  "n": 8,
+  "naive": {
+    "overall": {
+      "n": 8,
+      "accuracy": 1.0,
+      "avg_latency_s": 7.4732,
+      "p50_latency_s": 6.902,
+      "p95_latency_s": 10.9945,
+      "avg_tokens": 714.0,
+      "total_cost_usd": 0.02824
+    },
+    "by_tier": {
+      "easy": {
+        "n": 1,
+        "accuracy": 1.0,
+        "avg_latency_s": 4.2638,
+        "p50_latency_s": 4.2638,
+        "p95_latency_s": 4.2638,
+        "avg_tokens": 113.0,
+        "total_cost_usd": 0.000525
+      },
+      "medium": {
+        "n": 1,
+        "accuracy": 1.0,
+        "avg_latency_s": 5.1341,
+        "p50_latency_s": 5.1341,
+        "p95_latency_s": 5.1341,
+        "avg_tokens": 291.0,
+        "total_cost_usd": 0.001415
+      },
+      "hard": {
+        "n": 6,
+        "accuracy": 1.0,
+        "avg_latency_s": 8.3979,
+        "p50_latency_s": 7.9009,
+        "p95_latency_s": 11.0821,
+        "avg_tokens": 884.7,
+        "total_cost_usd": 0.0263
+      }
+    }
+  },
+  "agent": {
+    "overall": {
+      "n": 8,
+      "accuracy": 0.875,
+      "avg_latency_s": 28.7715,
+      "p50_latency_s": 29.7116,
+      "p95_latency_s": 36.869,
+      "avg_tokens": 1601.4,
+      "total_cost_usd": 0.062135,
+      "avg_steps": 5.62,
+      "repair_rate": 0.125
+    },
+    "by_tier": {
+      "easy": {
+        "n": 1,
+        "accuracy": 1.0,
+        "avg_latency_s": 15.5572,
+        "p50_latency_s": 15.5572,
+        "p95_latency_s": 15.5572,
+        "avg_tokens": 567.0,
+        "total_cost_usd": 0.002675,
+        "avg_steps": 4.0,
+        "repair_rate": 0.0
+      },
+      "medium": {
+        "n": 1,
+        "accuracy": 1.0,
+        "avg_latency_s": 24.2062,
+        "p50_latency_s": 24.2062,
+        "p95_latency_s": 24.2062,
+        "avg_tokens": 1327.0,
+        "total_cost_usd": 0.006435,
+        "avg_steps": 5.0,
+        "repair_rate": 1.0
+      },
+      "hard": {
+        "n": 6,
+        "accuracy": 0.8333,
+        "avg_latency_s": 31.7347,
+        "p50_latency_s": 31.6349,
+        "p95_latency_s": 37.4709,
+        "avg_tokens": 1819.5,
+        "total_cost_usd": 0.053025,
+        "avg_steps": 6.0,
+        "repair_rate": 0.0
+      }
+    }
+  }
+}

@@ -1,0 +1,353 @@
+{
+  "summary": {
+    "provider": "claude_cli",
+    "model": "claude-haiku-4-5",
+    "n": 8,
+    "naive": {
+      "overall": {
+        "n": 8,
+        "accuracy": 1.0,
+        "avg_latency_s": 7.4732,
+        "p50_latency_s": 6.902,
+        "p95_latency_s": 10.9945,
+        "avg_tokens": 714.0,
+        "total_cost_usd": 0.02824
+      },
+      "by_tier": {
+        "easy": {
+          "n": 1,
+          "accuracy": 1.0,
+          "avg_latency_s": 4.2638,
+          "p50_latency_s": 4.2638,
+          "p95_latency_s": 4.2638,
+          "avg_tokens": 113.0,
+          "total_cost_usd": 0.000525
+        },
+        "medium": {
+          "n": 1,
+          "accuracy": 1.0,
+          "avg_latency_s": 5.1341,
+          "p50_latency_s": 5.1341,
+          "p95_latency_s": 5.1341,
+          "avg_tokens": 291.0,
+          "total_cost_usd": 0.001415
+        },
+        "hard": {
+          "n": 6,
+          "accuracy": 1.0,
+          "avg_latency_s": 8.3979,
+          "p50_latency_s": 7.9009,
+          "p95_latency_s": 11.0821,
+          "avg_tokens": 884.7,
+          "total_cost_usd": 0.0263
+        }
+      }
+    },
+    "agent": {
+      "overall": {
+        "n": 8,
+        "accuracy": 0.875,
+        "avg_latency_s": 28.7715,
+        "p50_latency_s": 29.7116,
+        "p95_latency_s": 36.869,
+        "avg_tokens": 1601.4,
+        "total_cost_usd": 0.062135,
+        "avg_steps": 5.62,
+        "repair_rate": 0.125
+      },
+      "by_tier": {
+        "easy": {
+          "n": 1,
+          "accuracy": 1.0,
+          "avg_latency_s": 15.5572,
+          "p50_latency_s": 15.5572,
+          "p95_latency_s": 15.5572,
+          "avg_tokens": 567.0,
+          "total_cost_usd": 0.002675,
+          "avg_steps": 4.0,
+          "repair_rate": 0.0
+        },
+        "medium": {
+          "n": 1,
+          "accuracy": 1.0,
+          "avg_latency_s": 24.2062,
+          "p50_latency_s": 24.2062,
+          "p95_latency_s": 24.2062,
+          "avg_tokens": 1327.0,
+          "total_cost_usd": 0.006435,
+          "avg_steps": 5.0,
+          "repair_rate": 1.0
+        },
+        "hard": {
+          "n": 6,
+          "accuracy": 0.8333,
+          "avg_latency_s": 31.7347,
+          "p50_latency_s": 31.6349,
+          "p95_latency_s": 37.4709,
+          "avg_tokens": 1819.5,
+          "total_cost_usd": 0.053025,
+          "avg_steps": 6.0,
+          "repair_rate": 0.0
+        }
+      }
+    }
+  },
+  "records": [
+    {
+      "id": "e02",
+      "difficulty": "easy",
+      "question": "List all distinct product categories.",
+      "gold_sql": "SELECT DISTINCT category FROM products ORDER BY category",
+      "naive": {
+        "llm_calls": 1,
+        "tool_calls": 1,
+        "tool_errors": 0,
+        "input_tokens": 10,
+        "output_tokens": 103,
+        "total_tokens": 113,
+        "cost_usd": 0.000525,
+        "latency_s": 4.2638,
+        "sql": "SELECT DISTINCT category FROM products;",
+        "correct": true
+      },
+      "agent": {
+        "llm_calls": 4,
+        "tool_calls": 3,
+        "tool_errors": 0,
+        "input_tokens": 40,
+        "output_tokens": 527,
+        "total_tokens": 567,
+        "cost_usd": 0.002675,
+        "latency_s": 15.5572,
+        "sql": "SELECT DISTINCT category FROM products ORDER BY category",
+        "steps": 4,
+        "repaired": false,
+        "correct": true
+      }
+    },
+    {
+      "id": "m04",
+      "difficulty": "medium",
+      "question": "Top 5 products by total quantity sold.",
+      "gold_sql": "SELECT p.name, SUM(oi.quantity) AS qty FROM order_items oi JOIN products p ON p.product_id = oi.product_id GROUP BY p.product_id ORDER BY qty DESC LIMIT 5",
+      "naive": {
+        "llm_calls": 1,
+        "tool_calls": 1,
+        "tool_errors": 0,
+        "input_tokens": 10,
+        "output_tokens": 281,
+        "total_tokens": 291,
+        "cost_usd": 0.001415,
+        "latency_s": 5.1341,
+        "sql": "SELECT p.product_id, p.name, SUM(oi.quantity) as total_quantity_sold FROM products p JOIN order_items oi ON p.product_id = oi.product_id GROUP BY p.product_id, p.name ORDER BY total_quantity_sold DESC LIMIT 5",
+        "correct": true
+      },
+      "agent": {
+        "llm_calls": 5,
+        "tool_calls": 4,
+        "tool_errors": 1,
+        "input_tokens": 50,
+        "output_tokens": 1277,
+        "total_tokens": 1327,
+        "cost_usd": 0.006435,
+        "latency_s": 24.2062,
+        "sql": "SELECT p.name, SUM(oi.quantity) as total_quantity FROM products p JOIN order_items oi ON p.product_id = oi.product_id GROUP BY p.product_id, p.name ORDER BY total_quantity DESC LIMIT 5",
+        "steps": 5,
+        "repaired": true,
+        "correct": true
+      }
+    },
+    {
+      "id": "h02",
+      "difficulty": "hard",
+      "question": "Total profit per category for completed orders, where profit = quantity * (unit_price - cost).",
+      "gold_sql": "SELECT p.category, SUM(oi.quantity * (oi.unit_price - p.cost)) AS profit FROM order_items oi JOIN products p ON p.product_id = oi.product_id JOIN orders o ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY profit DESC",
+      "naive": {
+        "llm_calls": 1,
+        "tool_calls": 1,
+        "tool_errors": 0,
+        "input_tokens": 10,
+        "output_tokens": 466,
+        "total_tokens": 476,
+        "cost_usd": 0.00234,
+        "latency_s": 5.9624,
+        "sql": "SELECT products.category, SUM(order_items.quantity * (order_items.unit_price - products.cost)) as total_profit FROM orders JOIN order_items ON orders.order_id = order_items.order_id JOIN products ON order_items.product_id = products.product_id WHERE orders.status = 'completed' GROUP BY products.category;",
+        "correct": true
+      },
+      "agent": {
+        "llm_calls": 6,
+        "tool_calls": 5,
+        "tool_errors": 0,
+        "input_tokens": 67,
+        "output_tokens": 1663,
+        "total_tokens": 1730,
+        "cost_usd": 0.008382,
+        "latency_s": 32.3408,
+        "sql": "SELECT p.category, SUM(oi.quantity * (oi.unit_price - p.cost)) as total_profit FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN products p ON oi.product_id = p.product_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY total_profit DESC",
+        "steps": 6,
+        "repaired": false,
+        "correct": true
+      }
+    },
+    {
+      "id": "h06",
+      "difficulty": "hard",
+      "question": "Customers whose total completed spend is above the average completed spend across all customers.",
+      "gold_sql": "WITH spend AS (SELECT o.customer_id, SUM(oi.quantity * oi.unit_price) AS s FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'completed' GROUP BY o.customer_id) SELECT c.name, sp.s AS spend FROM spend sp JOIN customers c ON c.customer_id = sp.customer_id WHERE sp.s > (SELECT AVG(s) FROM spend) ORDER BY sp.s DESC",
+      "naive": {
+        "llm_calls": 1,
+        "tool_calls": 1,
+        "tool_errors": 0,
+        "input_tokens": 10,
+        "output_tokens": 1350,
+        "total_tokens": 1360,
+        "cost_usd": 0.00676,
+        "latency_s": 11.3009,
+        "sql": "SELECT c.customer_id, c.name, c.email, c.country, c.signup_date, SUM(oi.quantity * oi.unit_price) as total_spend\nFROM customers c\nJOIN orders o ON c.customer_id = o.customer_id\nJOIN order_items oi ON o.order_id = oi.order_id\nWHERE o.status = 'completed'\nGROUP BY c.customer_id, c.name, c.email, c.country, c.signup_date\nHAVING SUM(oi.quantity * oi.unit_price) > (\n    SELECT AVG(customer_spend)\n    FROM (\n        SELECT SUM(oi2.quantity * oi2.unit_price) as customer_spend\n        FROM orders o2\n        JOIN order_items oi2 ON o2.order_id = oi2.order_id\n        WHERE o2.status = 'completed'\n        GROUP BY o2.customer_id\n    )\n)",
+        "correct": true
+      },
+      "agent": {
+        "llm_calls": 6,
+        "tool_calls": 5,
+        "tool_errors": 0,
+        "input_tokens": 60,
+        "output_tokens": 1645,
+        "total_tokens": 1705,
+        "cost_usd": 0.008285,
+        "latency_s": 28.4944,
+        "sql": "SELECT c.customer_id, c.name, SUM(oi.quantity * oi.unit_price) as total_completed_spend FROM customers c JOIN orders o ON c.customer_id = o.customer_id JOIN order_items oi ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY c.customer_id, c.name HAVING SUM(oi.quantity * oi.unit_price) > (SELECT AVG(customer_spend) FROM (SELECT SUM(oi2.quantity * oi2.unit_price) as customer_spend FROM orders o2 JOIN order_items oi2 ON o2.order_id = oi2.order_id WHERE o2.status = 'completed' GROUP BY o2.customer_id)) ORDER BY total_completed_spend DESC",
+        "steps": 6,
+        "repaired": false,
+        "correct": true
+      }
+    },
+    {
+      "id": "h09",
+      "difficulty": "hard",
+      "question": "Monthly completed revenue in 2024 with a running cumulative total.",
+      "gold_sql": "SELECT month, revenue, SUM(revenue) OVER (ORDER BY month) AS running_total FROM (SELECT substr(o.order_date, 1, 7) AS month, SUM(oi.quantity * oi.unit_price) AS revenue FROM orders o JOIN order_items oi ON oi.order_id = o.order_id WHERE o.status = 'completed' AND o.order_date >= '2024-01-01' AND o.order_date <= '2024-12-31' GROUP BY month) ORDER BY month",
+      "naive": {
+        "llm_calls": 1,
+        "tool_calls": 1,
+        "tool_errors": 0,
+        "input_tokens": 10,
+        "output_tokens": 1104,
+        "total_tokens": 1114,
+        "cost_usd": 0.00553,
+        "latency_s": 8.8945,
+        "sql": "WITH monthly_data AS (\n  SELECT \n    strftime('%Y-%m', o.order_date) AS month,\n    SUM(oi.quantity * oi.unit_price) AS monthly_revenue\n  FROM orders o\n  JOIN order_items oi ON o.order_id = oi.order_id\n  WHERE o.status = 'completed' \n    AND strftime('%Y', o.order_date) = '2024'\n  GROUP BY strftime('%Y-%m', o.order_date)\n)\nSELECT \n  month,\n  monthly_revenue,\n  SUM(monthly_revenue) OVER (ORDER BY month) AS cumulative_revenue\nFROM monthly_data\nORDER BY month;",
+        "correct": true
+      },
+      "agent": {
+        "llm_calls": 5,
+        "tool_calls": 4,
+        "tool_errors": 0,
+        "input_tokens": 61,
+        "output_tokens": 1477,
+        "total_tokens": 1538,
+        "cost_usd": 0.007446,
+        "latency_s": 26.7117,
+        "sql": "SELECT strftime('%Y-%m', o.order_date) as month, SUM(oi.quantity * oi.unit_price) as monthly_revenue, SUM(SUM(oi.quantity * oi.unit_price)) OVER (ORDER BY strftime('%Y-%m', o.order_date)) as cumulative_revenue FROM orders o JOIN order_items oi ON o.order_id = oi.order_id WHERE o.status = 'completed' AND strftime('%Y', o.order_date) = '2024' GROUP BY strftime('%Y-%m', o.order_date) ORDER BY month",
+        "steps": 5,
+        "repaired": false,
+        "correct": true
+      }
+    },
+    {
+      "id": "h11",
+      "difficulty": "hard",
+      "question": "Each category's share (percentage) of total completed revenue.",
+      "gold_sql": "SELECT p.category, ROUND(100.0 * SUM(oi.quantity * oi.unit_price) / (SELECT SUM(oi2.quantity * oi2.unit_price) FROM order_items oi2 JOIN orders o2 ON o2.order_id = oi2.order_id WHERE o2.status = 'completed'), 2) AS pct_of_revenue FROM order_items oi JOIN products p ON p.product_id = oi.product_id JOIN orders o ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY pct_of_revenue DESC",
+      "naive": {
+        "llm_calls": 1,
+        "tool_calls": 1,
+        "tool_errors": 0,
+        "input_tokens": 10,
+        "output_tokens": 584,
+        "total_tokens": 594,
+        "cost_usd": 0.00293,
+        "latency_s": 6.8966,
+        "sql": "SELECT \n    p.category,\n    ROUND(100.0 * SUM(oi.quantity * oi.unit_price) / \n        (SELECT SUM(oi2.quantity * oi2.unit_price) \n         FROM order_items oi2\n         JOIN orders o2 ON oi2.order_id = o2.order_id\n         WHERE o2.status = 'completed'), 2) as percentage_share\nFROM order_items oi\nJOIN orders o ON oi.order_id = o.order_id\nJOIN products p ON oi.product_id = p.product_id\nWHERE o.status = 'completed'\nGROUP BY p.category\nORDER BY percentage_share DESC;",
+        "correct": true
+      },
+      "agent": {
+        "llm_calls": 6,
+        "tool_calls": 5,
+        "tool_errors": 0,
+        "input_tokens": 60,
+        "output_tokens": 1485,
+        "total_tokens": 1545,
+        "cost_usd": 0.007485,
+        "latency_s": 30.9289,
+        "sql": "WITH completed_revenue AS (SELECT p.category, SUM(oi.quantity * oi.unit_price) as category_revenue FROM order_items oi JOIN orders o ON oi.order_id = o.order_id JOIN products p ON oi.product_id = p.product_id WHERE o.status = 'completed' GROUP BY p.category), total_revenue AS (SELECT SUM(category_revenue) as total FROM completed_revenue) SELECT cr.category, ROUND(100.0 * cr.category_revenue / tr.total, 2) as percentage_share FROM completed_revenue cr CROSS JOIN total_revenue tr ORDER BY cr.category_revenue DESC",
+        "steps": 6,
+        "repaired": false,
+        "correct": true
+      }
+    },
+    {
+      "id": "h13",
+      "difficulty": "hard",
+      "question": "The best-selling product by quantity within each category.",
+      "gold_sql": "WITH sales AS (SELECT p.category AS category, p.name AS name, SUM(oi.quantity) AS qty, RANK() OVER (PARTITION BY p.category ORDER BY SUM(oi.quantity) DESC) AS rnk FROM order_items oi JOIN products p ON p.product_id = oi.product_id GROUP BY p.product_id) SELECT category, name, qty FROM sales WHERE rnk = 1 ORDER BY category",
+      "naive": {
+        "llm_calls": 1,
+        "tool_calls": 1,
+        "tool_errors": 0,
+        "input_tokens": 10,
+        "output_tokens": 1049,
+        "total_tokens": 1059,
+        "cost_usd": 0.005255,
+        "latency_s": 10.4255,
+        "sql": "SELECT category, product_id, name, total_quantity\nFROM (\n    SELECT \n        p.category,\n        p.product_id,\n        p.name,\n        SUM(oi.quantity) as total_quantity,\n        ROW_NUMBER() OVER (PARTITION BY p.category ORDER BY SUM(oi.quantity) DESC) as rn\n    FROM products p\n    JOIN order_items oi ON p.product_id = oi.product_id\n    GROUP BY p.category, p.product_id, p.name\n)\nWHERE rn = 1",
+        "correct": true
+      },
+      "agent": {
+        "llm_calls": 5,
+        "tool_calls": 4,
+        "tool_errors": 0,
+        "input_tokens": 55,
+        "output_tokens": 1950,
+        "total_tokens": 2005,
+        "cost_usd": 0.009805,
+        "latency_s": 32.957,
+        "sql": "SELECT category, name, total_quantity FROM (SELECT p.category, p.name, SUM(oi.quantity) as total_quantity, ROW_NUMBER() OVER (PARTITION BY p.category ORDER BY SUM(oi.quantity) DESC) as rn FROM products p JOIN order_items oi ON p.product_id = oi.product_id GROUP BY p.category, p.product_id, p.name) WHERE rn = 1",
+        "steps": 5,
+        "repaired": false,
+        "correct": true
+      }
+    },
+    {
+      "id": "h15",
+      "difficulty": "hard",
+      "question": "Top 3 categories by profit margin percentage (profit / revenue) on completed orders.",
+      "gold_sql": "SELECT p.category, ROUND(100.0 * SUM(oi.quantity * (oi.unit_price - p.cost)) / SUM(oi.quantity * oi.unit_price), 2) AS margin_pct FROM order_items oi JOIN products p ON p.product_id = oi.product_id JOIN orders o ON o.order_id = oi.order_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY margin_pct DESC LIMIT 3",
+      "naive": {
+        "llm_calls": 1,
+        "tool_calls": 1,
+        "tool_errors": 0,
+        "input_tokens": 10,
+        "output_tokens": 695,
+        "total_tokens": 705,
+        "cost_usd": 0.003485,
+        "latency_s": 6.9074,
+        "sql": "SELECT \n    p.category,\n    ROUND(100.0 * SUM(oi.quantity * (oi.unit_price - p.cost)) / SUM(oi.quantity * oi.unit_price), 2) as profit_margin_percentage\nFROM orders o\nJOIN order_items oi ON o.order_id = oi.order_id\nJOIN products p ON oi.product_id = p.product_id\nWHERE o.status = 'completed'\nGROUP BY p.category\nORDER BY profit_margin_percentage DESC\nLIMIT 3;",
+        "correct": true
+      },
+      "agent": {
+        "llm_calls": 8,
+        "tool_calls": 7,
+        "tool_errors": 0,
+        "input_tokens": 87,
+        "output_tokens": 2307,
+        "total_tokens": 2394,
+        "cost_usd": 0.011622,
+        "latency_s": 38.9755,
+        "sql": "SELECT p.category, SUM(oi.quantity * oi.unit_price) as total_revenue, SUM(oi.quantity * p.cost) as total_cost, (SUM(oi.quantity * oi.unit_price) - SUM(oi.quantity * p.cost)) / SUM(oi.quantity * oi.unit_price) * 100 as profit_margin_pct FROM orders o JOIN order_items oi ON o.order_id = oi.order_id JOIN products p ON oi.product_id = p.product_id WHERE o.status = 'completed' GROUP BY p.category ORDER BY profit_margin_pct DESC LIMIT 3",
+        "steps": 8,
+        "repaired": false,
+        "correct": false
+      }
+    }
+  ]
+}

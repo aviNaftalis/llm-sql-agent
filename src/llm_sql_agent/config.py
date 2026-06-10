@@ -1,8 +1,9 @@
 """Settings, .env loading, and the per-model price table.
 
-Everything is env-driven. The backend is Claude (Anthropic) by default; a local
-Ollama backend is on the roadmap. An ANTHROPIC_API_KEY is required — drop it in a
-`.env` file at the repo root (gitignored) and it's loaded automatically.
+Everything is env-driven. The backend is Claude (Anthropic), reached through the
+local `claude` CLI — no API key required. A local Ollama backend is on the
+roadmap. A `.env` file at the repo root (gitignored) is loaded automatically and
+can set LLM_MODEL / LLM_PROVIDER overrides.
 """
 from __future__ import annotations
 
@@ -26,7 +27,6 @@ PRICES: dict[str, tuple[float, float]] = {
 
 _DEFAULT_MODEL = {
     "anthropic": "claude-opus-4-8",
-    "claude_cli": "claude-opus-4-8",  # via the local Claude Code CLI, no API key
     "ollama": "llama3.1",  # roadmap
 }
 

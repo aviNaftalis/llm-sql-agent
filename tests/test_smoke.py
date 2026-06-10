@@ -1,12 +1,12 @@
-"""Key-gated smoke test against the real Claude backend.
+"""Smoke test against the real Claude backend (via the `claude` CLI).
 
-Skipped unless ANTHROPIC_API_KEY is set, so the offline suite stays green. When a
-key is present it verifies the agent actually drives a real model to a valid,
-executing query on a complex question.
+Skipped unless the `claude` CLI is on PATH, so the offline suite stays green in
+CI. When present it verifies the agent drives a real model to a valid, executing
+query on a complex question.
 
-    ANTHROPIC_API_KEY=... pytest tests/test_smoke_real.py -v
+    pytest tests/test_smoke.py -v
 """
-import os
+import shutil
 
 import pytest
 
@@ -18,8 +18,8 @@ from llm_sql_agent.llm import make_client
 from llm_sql_agent.tracing import Tracer
 
 pytestmark = pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="no ANTHROPIC_API_KEY — real-backend smoke test skipped",
+    shutil.which("claude") is None,
+    reason="`claude` CLI not on PATH — real-backend smoke test skipped",
 )
 
 
