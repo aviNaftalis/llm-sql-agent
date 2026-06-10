@@ -22,8 +22,8 @@ The backend is [Claude](https://www.anthropic.com/claude) through the local
 ## Contents
 
 - [The problem](#the-problem)
-- [Why agentic wins](#why-agentic-wins) — the one example that matters
-- [Benchmark](#benchmark) — naive vs. agent, and Opus vs. Haiku
+- [Why agentic wins](#why-agentic-wins) — naive vs. agent
+- [Small model + agent beats a big model used naively](#a-small-model--an-agent-beats-a-big-model-used-naively) — the payoff
 - [How it works](#how-it-works)
 - [Run it](#run-it)
 - [Notes](#notes)
@@ -75,22 +75,23 @@ run above). Try it live: `make demo`.
 
 ---
 
-## Benchmark
+## A small model + an agent beats a big model used naively
 
-35 graded questions (10 easy / 10 medium / 15 hard), each run **twice** — naive
-and agent. The metric is **execution accuracy**: run the gold and predicted
-queries and compare result sets (robust to extra columns and to row order except
-for top-N). `make eval` produces the chart above; `make compare` runs it on two
-models:
+Here's the payoff. Three configurations, three axes — **accuracy, latency, tokens**:
 
-![Opus 4.8 vs Haiku 4.5](results/model_comparison.png)
+![Haiku+agent vs Opus one-shot](results/tradeoff.png)
 
-Same result for both models — the agentic loop takes naive from 42% to **100%**.
-And since the loop, not raw model power, does the work here, **Haiku-as-agent
-matches Opus-as-agent at ~10× lower cost**.
+**Haiku + agent vs. Opus one-shot:** higher accuracy (**100% vs 42%**) *and*
+fewer tokens (**1030 vs 2052/question**). The agent's tool calls cost more
+**latency** (it makes several round-trips) — that's the trade. So the
+intelligence you need for hard SQL comes from the **loop**, not from a bigger
+model: wrap a cheap model in an agent and you beat the expensive one-shot, for
+less.
 
-> Charts above are a 12-question run (4 per tier) on the `claude` CLI backend.
-> `make eval` / `make compare` run the full 35.
+> The metric is **execution accuracy** (run gold vs. predicted, compare result
+> sets; robust to extra columns and to row order except for top-N). Charts come
+> from a 12-question run (4 per tier) on the `claude` CLI backend — `make eval`
+> (single model) and `make compare` (both models) run the full 35.
 
 ---
 

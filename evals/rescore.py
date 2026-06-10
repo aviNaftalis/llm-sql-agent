@@ -4,7 +4,7 @@ Recomputes execution accuracy for every results/eval_results_*.json from the
 stored predicted SQL, re-aggregates, and rewrites the per-model summaries. Handy
 after changing metrics.py (you don't want to re-spend tokens to re-measure).
 
-    python -m evals.rescore && python -m evals.compare
+    python -m evals.rescore && python -m evals.tradeoff
 """
 from __future__ import annotations
 

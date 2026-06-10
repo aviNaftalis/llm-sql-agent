@@ -53,7 +53,7 @@ eval:
 compare:
 	$(PYTHON) -m evals.harness --provider anthropic --model claude-opus-4-8
 	$(PYTHON) -m evals.harness --provider anthropic --model claude-haiku-4-5
-	$(PYTHON) -m evals.compare
+	$(PYTHON) -m evals.tradeoff
 
 .PHONY: chart
 chart:
