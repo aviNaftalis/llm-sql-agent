@@ -9,7 +9,6 @@ import sys
 
 from .agent import run_agent
 from .config import load_settings
-from .dataset import build_oracle, load_eval_set, resolve_question
 from .llm import make_client
 from .tracing import Tracer
 
@@ -19,13 +18,12 @@ def _ask(question: str, provider: str | None, model: str | None) -> int:
     if not os.path.exists(settings.db_path):
         print(f"Database not found at {settings.db_path}. Run `make db` first.", file=sys.stderr)
         return 2
+    if settings.provider == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+        print("ANTHROPIC_API_KEY is not set. Put it in a .env file at the repo root "
+              "(see .env.example).", file=sys.stderr)
+        return 2
 
-    items = load_eval_set()
-    oracle = build_oracle(items)
-    if settings.provider == "mock":
-        question = resolve_question(question, items)
-
-    client = make_client(settings, oracle=oracle)
+    client = make_client(settings)
     tracer = Tracer(settings.model)
 
     from rich.console import Console
@@ -50,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     ask = sub.add_parser("ask", help="Ask the agent a question")
     ask.add_argument("question")
-    ask.add_argument("--provider", default=None, help="mock | anthropic | ollama")
+    ask.add_argument("--provider", default=None, help="anthropic (default) | ollama (roadmap)")
     ask.add_argument("--model", default=None)
     args = parser.parse_args(argv)
 

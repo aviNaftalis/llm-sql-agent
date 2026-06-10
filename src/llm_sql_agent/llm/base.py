@@ -2,9 +2,9 @@
 
 Messages and tools use the Anthropic tool-use shape (text / tool_use /
 tool_result content blocks) as the internal lingua franca — the Anthropic
-backend passes them through almost verbatim, the mock backend interprets them,
-and a future Ollama backend translates them. `chat()` always returns the same
-normalized `LLMResponse` regardless of provider.
+backend passes them through almost verbatim, and a future Ollama backend
+translates them. `chat()` always returns the same normalized `LLMResponse`
+regardless of provider.
 """
 from __future__ import annotations
 

@@ -16,7 +16,8 @@ import select
 import sys
 import time
 
-COLS, ROWS = 140, 39
+COLS = int(os.environ.get("REC_COLS", "140"))
+ROWS = int(os.environ.get("REC_ROWS", "39"))
 
 
 def main() -> int:

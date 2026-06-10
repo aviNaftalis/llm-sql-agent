@@ -41,8 +41,7 @@ def _accuracy_chart(summary: dict, path: str) -> None:
     ax.set_xticklabels(TIERS)
     ax.set_ylabel("execution accuracy (%)")
     ax.set_ylim(0, 105)
-    tag = " — keyless mock (illustrative)" if summary.get("provider") == "mock" else ""
-    ax.set_title(f"Text-to-SQL accuracy: naive vs. agent\n{summary['model']}{tag}")
+    ax.set_title(f"Text-to-SQL accuracy: naive vs. agent\n{summary['model']}")
     for i, (n, a) in enumerate(zip(naive, agent)):
         ax.text(i - w / 2, n + 1, f"{n:.0f}", ha="center", fontsize=8)
         ax.text(i + w / 2, a + 1, f"{a:.0f}", ha="center", fontsize=8)

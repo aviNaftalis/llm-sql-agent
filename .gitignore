@@ -13,4 +13,4 @@ dist/
 data/shop.db
 
 # Recorder intermediate (regenerable via `make gif`)
-results/demo.cast
+results/*.cast

@@ -17,6 +17,6 @@ def db_path(tmp_path_factory) -> str:
 @pytest.fixture
 def settings(db_path) -> Settings:
     return Settings(
-        provider="mock", model="mock", db_path=db_path,
-        max_steps=8, max_rows=1000, request_timeout=60, max_retries=3,
+        provider="anthropic", model="claude-opus-4-8", db_path=db_path,
+        max_steps=10, max_rows=1000, request_timeout=60, max_retries=3,
     )

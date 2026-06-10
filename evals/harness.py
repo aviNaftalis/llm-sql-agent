@@ -5,7 +5,7 @@ percentiles, steps), and cost (tokens, USD) per difficulty tier. Writes
 results/eval_results.json (full per-question records) and
 results/benchmark_summary.json, then prints a comparison table.
 
-    python -m evals.harness --provider mock
+    python -m evals.harness --provider anthropic
     python -m evals.harness --provider anthropic --model claude-sonnet-4-6
 """
 from __future__ import annotations
@@ -17,7 +17,7 @@ import sys
 
 from llm_sql_agent.agent import run_agent
 from llm_sql_agent.config import RESULTS_DIR, load_settings
-from llm_sql_agent.dataset import build_oracle, load_eval_set
+from llm_sql_agent.dataset import load_eval_set
 from llm_sql_agent.llm import make_client
 from llm_sql_agent.naive import run_naive
 from llm_sql_agent.tracing import Tracer
@@ -49,8 +49,6 @@ def _print_table(summary: dict) -> None:
 
     console = Console()
     title = f"{summary['provider']} / {summary['model']}  (n={summary['n']})"
-    if summary["provider"] == "mock":
-        title += "  — keyless mock: illustrative, deterministic"
     table = Table(title=title)
     table.add_column("tier")
     table.add_column("naive acc", justify="right")
@@ -96,10 +94,14 @@ def main(argv: list[str] | None = None) -> int:
     if not os.path.exists(settings.db_path):
         print(f"Database not found at {settings.db_path}. Run `make db` first.", file=sys.stderr)
         return 2
+    if settings.provider == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+        print("ANTHROPIC_API_KEY is not set. Put it in a .env file at the repo root.",
+              file=sys.stderr)
+        return 2
 
     all_items = load_eval_set()
     items = all_items[: args.limit] if args.limit else all_items
-    client = make_client(settings, oracle=build_oracle(all_items))
+    client = make_client(settings)
 
     print(f"Running {len(items)} questions on provider={settings.provider} "
           f"model={settings.model} ...")

@@ -1,6 +1,6 @@
 """Tool schemas (Anthropic tool-use format) and a name -> implementation dispatch.
 
-Both real and mock LLM backends consume the same schemas, and the agent loop
+Every LLM backend consumes the same schemas, and the agent loop
 routes every tool call through `dispatch`. Adding a tool here is the only change
 needed for the agent and every backend to use it.
 """

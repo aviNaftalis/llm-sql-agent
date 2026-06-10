@@ -2,161 +2,135 @@
 
 **A natural-language question goes in, the right SQL comes out — and we measure how much an *agent* beats a one-shot prompt at getting it right.**
 
-An [LLM](https://en.wikipedia.org/wiki/Large_language_model "Large Language Model")
+[Claude](https://www.anthropic.com/claude "Anthropic's Claude model family")
 answers questions over a SQL database by inspecting the schema, writing a query,
 running it, reading the error when it fails, and fixing it — a
 [tool-calling](https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview "Tool use / function calling — the model emits structured calls your code executes")
-agent loop. This repo builds that **two ways** — a naive one-shot prompt and a
-production agent — and benchmarks them on a ground-truth eval set across
+agent loop. This repo builds that **two ways** — a **naive** one-shot prompt and an
+**agentic** loop — and benchmarks them on a ground-truth eval set across
 **accuracy, speed, and token cost**.
 
-It runs **with zero API keys** (a deterministic mock backend), and against a real
-model (Claude) when you have a key.
+> **naive vs. agentic** is the comparison this project exists to make. *Naive* =
+> one prompt, one query, no recovery. *Agentic* = the model drives tools over
+> multiple steps and repairs its own mistakes. The whole point is to quantify the
+> gap.
 
 ## Demo
 
-![agent demo](results/demo.gif)
+Three complex questions, each answered live by the agent (schema inspection →
+query → observe error → **self-repair** → answer). Rendered with `make demos`:
 
-The agent inspects the schema, runs a query, **hits a SQL error, repairs it**, and
-answers — `make demo`, no API key. (Regenerate the GIF with `make gif`, or
-`make tape` if you have [VHS](https://github.com/charmbracelet/vhs).)
+**1. Profit per category** (multi-join + arithmetic)
+
+<!-- DEMO:h02 -->
+_Run `make demos` to generate `results/demo_h02.gif`._
+
+**2. Best-selling product within each category** (window function + ranking)
+
+<!-- DEMO:h13 -->
+_Run `make demos` to generate `results/demo_h13.gif`._
+
+**3. Above-average-spending customers** (CTE + subquery comparison)
+
+<!-- DEMO:h06 -->
+_Run `make demos` to generate `results/demo_h06.gif`._
 
 ## Results
 
-![accuracy: naive vs. agent](results/accuracy.png)
+<!-- RESULTS -->
+_Run `make eval` to generate `results/accuracy.png` and `results/latency_tokens.png`._
 
-The keyless mock run (`make eval`) is **illustrative and deterministic** — it
-simulates a model that fumbles harder queries and an agent that recovers from the
-error. It exists so the whole pipeline is reproducible by anyone, and so the
-benchmark can be a *test* (see below). For **real headline numbers**, point it at
-a model:
-
-```bash
-ANTHROPIC_API_KEY=sk-ant-... make eval-real PROVIDER=anthropic
-```
-
-`make eval` prints a per-tier table and writes `results/benchmark_summary.json`:
-
-```
- tier    │ naive acc │ agent acc │ repair rate │ steps │ p95 lat │ tokens
- easy    │     100%  │     100%  │       0%    │  4.0  │    2ms  │   585
- medium  │     100%  │     100%  │     100%    │  5.0  │    8ms  │  1152
- hard    │       0%  │     100%  │     100%    │  5.0  │   11ms  │  1336
- overall │      67%  │     100%  │      67%    │  4.7  │   11ms  │  1024
-```
-
-The agent trades **more tokens and more steps** for **higher accuracy** — exactly
-the production trade-off this project is about. `results/latency_tokens.png` charts that cost.
+`make eval` runs all 35 graded questions (10 easy / 10 medium / 15 hard) twice —
+naive and agent — and prints a per-tier table of **accuracy** (execution accuracy
++ agent repair rate), **speed** (p95 latency, steps), and **cost** (tokens, USD),
+writing `results/benchmark_summary.json`. The agent trades more tokens and steps
+for higher accuracy — the production trade-off this project is about.
 
 ## The two approaches
 
 ### Naive baseline (`src/llm_sql_agent/naive.py`)
 One completion: the whole schema is dumped into the prompt, the model returns a
-single SQL string, and it's executed **once**. No introspection, no retry. This is
-the control — it captures the failure modes (hallucinated columns, missed joins,
-no error recovery).
+single SQL string, executed **once**. No introspection, no retry. The control —
+it captures the failure modes (hallucinated columns, missed joins, no recovery).
 
-### Production agent (`src/llm_sql_agent/agent.py`)
-A multi-step **tool-calling loop**:
-
+### Agentic loop (`src/llm_sql_agent/agent.py`)
 ```
 reason → call a tool → observe result/error → repair → … → final answer
 ```
-
 Tools (`src/llm_sql_agent/tools/`): `list_tables`, `describe_table`, `run_sql`.
-The orchestration concerns that make it production-grade:
+The orchestration that makes it production-grade:
 
 - **Self-repair** — a failed query's error is fed back so the model fixes it.
 - **Guardrails** (`guardrails.py`) — `sqlparse`-validated single read-only
   `SELECT`/`WITH` only (writes rejected), an injected `LIMIT`, and a read-only
-  SQLite connection (`mode=ro` + `PRAGMA query_only`). Defence in depth: even a
-  buggy query can't mutate the database.
-- **Step cap, retries, timeouts** — the loop is bounded; LLM calls retry with
-  backoff; queries have a runaway backstop.
+  SQLite connection (`mode=ro` + `PRAGMA query_only`). Even a buggy query can't
+  mutate the database.
+- **Step cap, retries, timeouts** — the loop is bounded; the SDK retries
+  transient API errors with backoff; queries have a runaway backstop.
 - **Tracing + cost accounting** (`tracing.py`) — every LLM/tool step is a timed
   span with token counts and an estimated USD cost.
 
 ## How it's measured
 
-The eval set (`data/eval_set.jsonl`) is 30 graded questions (easy / medium / hard).
-The metric is **execution accuracy** (`evals/metrics.py`): run the gold and
-predicted queries and compare result sets — order-insensitive unless the gold
-query has a top-level `ORDER BY`. The harness also records **speed** (p50/p95
-latency, step count) and **cost** (tokens, USD), per tier.
+The eval set (`data/eval_set.jsonl`) is 35 graded questions. The metric is
+**execution accuracy** (`evals/metrics.py`): run the gold and predicted queries
+and compare result sets — order-insensitive unless the gold query has a top-level
+`ORDER BY`. The harness also records p50/p95 latency, step count, tokens, and USD.
 
-**The benchmark is a test.** `tests/test_benchmark.py` runs the full harness on the
-mock backend and asserts on the metrics — agent accuracy beats naive, repair rate
-> 0, and the speed/token numbers are recorded. "We measure accuracy, speed, and
-tokens" is a checked property, not a claim in a README.
+**Tested deterministically, no key required.** `tests/test_agent_loop.py` drives
+the agent loop with a scripted LLM double (`tests/fakes.py`) over complex
+multi-join / CTE / window-function questions and asserts it recovers from an
+injected error and lands on a correct, executing query — and that speed/token
+metrics are recorded. `tests/test_smoke_real.py` is a **key-gated** smoke test that
+runs the real Claude backend and checks it produces valid, executing SQL (skipped
+when `ANTHROPIC_API_KEY` is unset, so the offline suite stays green).
 
-## Provider-agnostic by design
+## Backends
 
-Every backend implements one normalized interface (`src/llm_sql_agent/llm/base.py`):
+One normalized interface (`src/llm_sql_agent/llm/base.py`); the agent and eval
+code are backend-agnostic.
 
 | Backend | Status | Notes |
 |---|---|---|
-| `mock` | ✅ default | Deterministic, keyless. Powers `make eval`, `make demo`, and the tests. Simulates outcomes from the gold SQL — **illustrative, not a real model**. |
-| `anthropic` | ✅ | Claude via the Messages API with native tool-use. `claude-opus-4-8` by default; set `LLM_MODEL=claude-sonnet-4-6` for a cheaper run. |
+| `anthropic` | ✅ default | Claude via the Messages API with native tool-use. `claude-opus-4-8` by default; `LLM_MODEL=claude-sonnet-4-6` for a cheaper run. |
 | `ollama` | 🟡 roadmap | Local models, no key/cost. Shipped as a documented stub — the interface and tool registry are designed so it drops in with no changes elsewhere. |
 
 ## Quick start
 
-No API key needed:
+Requires an Anthropic API key. Put it in a `.env` file at the repo root (see
+`.env.example`); it's loaded automatically.
 
 ```bash
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+
 make setup        # venv + install
 make db           # build the deterministic SQLite database
-make eval         # run the benchmark (mock) and render charts
-make demo         # live single-question trace (text)
-make test         # full suite incl. benchmark-as-tests
-make gif          # record results/demo.gif (needs `agg`; no root)
+make test         # offline suite (real-backend smoke test auto-skips)
+make eval         # naive-vs-agent benchmark → table + charts
+make demos        # render the 3 showcase demo GIFs (needs `agg`)
+make demo         # one live trace in the terminal
 ```
+
+Cheaper model: `make eval MODEL=claude-sonnet-4-6`.
 
 Charts land in `results/` as PNGs. On WSL, view them with
-`explorer.exe results\accuracy.png` (or open the `results/` folder in Explorer);
-on Linux/macOS use `xdg-open` / `open`.
-
-A real run (needs `ANTHROPIC_API_KEY`):
-
-```bash
-make eval-real PROVIDER=anthropic                       # claude-opus-4-8
-make eval-real PROVIDER=anthropic MODEL=claude-sonnet-4-6
-```
-
-### `make demo` output
-
-```
-$ sql-agent ask "Top 3 products by revenue in 2024 (completed orders), with category"
-
- # │ step          │ latency │ tokens │ detail
- 1 │ agent         │   0ms   │  …     │ Let me look at the schema first.
- 2 │ tool:list_tables
- 3 │ agent         │   0ms   │  …     │ Now I'll inspect the `order_items` table.
- 4 │ tool:describe_table
- 5 │ agent         │   0ms   │ 186+93 │ Running my query.
- 6 │ tool:run_sql  │  10ms   │        │ SQL error: no such column: nonexistent_col
- 7 │ agent         │   0ms   │ 338+96 │ That column doesn't exist — fixing the query.
- 8 │ tool:run_sql  │   4ms   │        │ name | category | revenue …
- 9 │ agent         │   0ms   │ 522+16 │ Based on the query results, here is the answer.
-
-steps 5  tool calls 4 (1 error)  tokens 1382  cost $0.0000  latency 0.02s
-(recovered from a SQL error via the repair loop)
-```
+`explorer.exe results\accuracy.png`; on Linux/macOS use `xdg-open` / `open`.
 
 ## Layout
 
 ```
 src/llm_sql_agent/
-  agent.py        production agent loop (tool-calling + self-repair)
+  agent.py        agentic loop (tool-calling + self-repair)
   naive.py        one-shot baseline
   guardrails.py   read-only SELECT validation + LIMIT injection
   db.py           read-only SQLite access
   tracing.py      span tracing + token/cost accounting
   tools/          list_tables / describe_table / run_sql + schemas
-  llm/            base interface, mock / anthropic / ollama backends
-data/             schema.sql, deterministic seed.py, eval_set.jsonl
+  llm/            base interface; anthropic backend; ollama (roadmap stub)
+data/             schema.sql, deterministic seed.py, eval_set.jsonl (35 questions)
 evals/            harness.py, metrics.py, plot.py
-tests/            guardrails, tools, metrics, benchmark-as-tests
+scripts/          record_demo.py, render_demos.py (asciicast -> GIF, no root)
+tests/            guardrails, tools, metrics, agent-loop (scripted), real smoke
 ```
 
 ## Roadmap
@@ -164,11 +138,5 @@ tests/            guardrails, tools, metrics, benchmark-as-tests
 - **Local Ollama backend** — open-model runs with no key/cost (stub in place).
 - **LLM-judge eval track** — score the agent's natural-language answer, not just
   the SQL result set.
-- **More failure modes in the eval set** — ambiguous questions, multi-step
-  reasoning, schema-change robustness.
-
-## Notes
-
-The keyless `mock` backend is a **test double**: it simulates outcomes from the
-gold SQL so the pipeline is fully reproducible offline. Numbers from `make eval`
-are illustrative. Real model performance comes from `make eval-real`.
+- **More failure modes in the eval set** — ambiguous questions, schema-change
+  robustness, deeper multi-step reasoning.

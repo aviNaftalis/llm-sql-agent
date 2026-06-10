@@ -19,6 +19,6 @@ class OllamaClient:
     def chat(self, system, messages, tools=None) -> LLMResponse:
         raise NotImplementedError(
             "The Ollama backend is planned but not implemented yet. "
-            "Use LLM_PROVIDER=mock (keyless) or LLM_PROVIDER=anthropic today. "
+            "Use LLM_PROVIDER=anthropic (the default) today. "
             "See the README roadmap."
         )
