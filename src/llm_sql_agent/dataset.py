@@ -5,10 +5,6 @@ import json
 
 from .config import EVAL_SET_PATH
 
-# Three complex questions used for the demo GIFs (`make demos`): a profit
-# aggregation, a windowed per-group ranking, and a CTE + subquery comparison.
-SHOWCASE_IDS = ["h02", "h13", "h06"]
-
 
 def load_eval_set(path: str | None = None) -> list[dict]:
     path = path or EVAL_SET_PATH

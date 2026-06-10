@@ -1,171 +1,157 @@
 # llm-sql-agent
 
-**A natural-language question goes in, the right SQL comes out — and we measure how much an *agent* beats a one-shot prompt at getting it right.**
+**A natural-language question deserves the *right* SQL — not a confident guess.**
 
-[Claude](https://www.anthropic.com/claude "Anthropic's Claude model family")
-answers questions over a SQL database by inspecting the schema, writing a query,
-running it, reading the error when it fails, and fixing it — a
-[tool-calling](https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview "Tool use / function calling — the model emits structured calls your code executes")
-agent loop. This repo builds that **two ways** — a **naive** one-shot prompt and an
-**agentic** loop — and benchmarks them on a ground-truth eval set across
-**accuracy, speed, and token cost**.
+Ask a question about a database in English. A one-shot prompt writes a single
+query and hopes it's right. An **agent** writes a query, *runs* it, reads the
+result (or the error), fixes it, and answers. This repo builds both and shows —
+with one example and a benchmark — how much that difference is worth.
 
-> **naive vs. agentic** is the comparison this project exists to make. *Naive* =
-> one prompt, one query, no recovery. *Agentic* = the model drives tools over
-> multiple steps and repairs its own mistakes. The whole point is to quantify the
-> gap.
+The backend is [Claude](https://www.anthropic.com/claude) through the local
+[`claude` CLI](https://docs.claude.com/en/docs/claude-code) — **no API key**.
 
-## Demos
+## At a glance
 
-Every command the repo runs, captured as a GIF. The runs below are deliberately
-**tiny** — the agent showcases use 3 questions, and the benchmark/compare demos
-use just **2 questions** (1 easy + 1 hard), on **Haiku where the model doesn't
-matter** — so they're cheap to regenerate. The full benchmark is 35 questions
-(`make eval` / `make compare`).
+| | One-shot (naive) | Agentic |
+|---|---|---|
+| **Process** | schema in the prompt → one query → run once | inspect schema → query → observe result/error → **repair** → answer |
+| **Wrong answer** | returned confidently, undetected | caught — the agent sees the result is off and fixes the query |
+| **SQL error** | the request just fails | read the error, correct the query, continue |
+| **Cost** | 1 model call | a few calls (the price of being right) |
 
-### The agent on complex SQL (Opus 4.8) — `make demos`
+## Contents
 
-Each: schema inspection → query → answer. Repairs on error when one occurs.
+- [The problem](#the-problem)
+- [Why agentic wins](#why-agentic-wins) — the one example that matters
+- [Benchmark](#benchmark) — naive vs. agent, and Opus vs. Haiku
+- [How it works](#how-it-works)
+- [Run it](#run-it)
+- [Notes](#notes)
 
-**Profit per category** — multi-join + arithmetic
-![profit per category](results/demo_h02.gif)
+---
 
-**Best-selling product within each category** — window function + ranking (CTE)
-![best seller per category](results/demo_h13.gif)
+## The problem
 
-**Above-average-spending customers** — CTE + subquery comparison
-![above-average spenders](results/demo_h06.gif)
+Hand a capable model your schema and it will usually write decent SQL. But a
+*single* query is a guess: on a question with a ratio, a window function, or a
+subtle join, the model returns a plausible answer that's quietly **wrong** — and
+nothing checks it. If the query has a syntax or column error, the whole request
+just fails. There's no second look.
 
-### Every command, end to end — `make tour`
+An agent closes that gap by **executing**: it runs the query, sees the rows (or
+the error), and revises. That's the entire thesis of this repo, and it's worth
+exactly what the example below shows.
 
-**Build the seeded database** — `make db`
-![build database](results/demo_db.gif)
+---
 
-**Run the test suite** — `make test`
-![tests](results/demo_test.gif)
+## Why agentic wins
 
-**Benchmark naive vs. agent** — `make eval` (tiny 2-question run; per-tier accuracy / speed / tokens)
+**Same question, two approaches.** The one-shot writes a confident query and
+returns the **wrong** answer. The agent runs its query, checks the result against
+the database, and returns the **right** one.
+
+![one-shot vs. agentic](results/demo_showcase.gif)
+
+**Error recovery.** When a query *does* error, the agent reads the message,
+corrects the query, and keeps going — the one-shot has no second chance.
+
+![agent recovers from a SQL error](results/demo_recovery.gif)
+
+> Both demos run on **Claude Haiku 4.5** — a smaller model makes the gap visible.
+> The same loop runs on any Claude model (`make demo` to try it live).
+
+---
+
+## Benchmark
+
+35 graded questions (10 easy / 10 medium / 15 hard), each run **twice** — naive
+and agent. The metric is **execution accuracy**: run the gold and predicted
+queries and compare result sets (robust to extra columns and to row order except
+for top-N). It also records repair rate, steps, latency, and tokens.
+
+**`make eval`** — naive vs. agent, per tier *(demo is a tiny 2-question run; the real one does all 35)*:
+
 ![benchmark](results/demo_eval.gif)
 
-**Compare Opus 4.8 vs. Haiku 4.5** — `make compare` (tiny 2-question run)
-![model comparison](results/demo_compare.gif)
+**`make compare`** — the same benchmark on two models, to see where the
+capability gap shows up (the hard tier) and what the agent loop recovers on the
+weaker model:
 
-## What the benchmark measures
+![Opus 4.8 vs Haiku 4.5](results/demo_compare.gif)
 
-`make eval` runs all 35 graded questions (10 easy / 10 medium / 15 hard) twice —
-naive and agent — and prints a per-tier table of **accuracy** (execution accuracy
-+ agent repair rate), **speed** (p95 latency, steps), and **cost** (tokens, USD),
-writing `results/benchmark_summary.json` and charts. `make compare` runs it on two
-models to show where the capability gap shows up (typically the hard tier) and
-what the agent loop recovers on the weaker model. (The demos above show both at
-small scale.)
+---
 
-## The two approaches
+## How it works
 
-### Naive baseline (`src/llm_sql_agent/naive.py`)
-One completion: the whole schema is dumped into the prompt, the model returns a
-single SQL string, executed **once**. No introspection, no retry. The control —
-it captures the failure modes (hallucinated columns, missed joins, no recovery).
+### The agentic loop (`src/llm_sql_agent/agent.py`)
 
-### Agentic loop (`src/llm_sql_agent/agent.py`)
 ```
 reason → call a tool → observe result/error → repair → … → final answer
 ```
+
 Tools (`src/llm_sql_agent/tools/`): `list_tables`, `describe_table`, `run_sql`.
-The orchestration that makes it production-grade:
+What makes it production-grade rather than a while-loop:
 
 - **Self-repair** — a failed query's error is fed back so the model fixes it.
 - **Guardrails** (`guardrails.py`) — `sqlparse`-validated single read-only
   `SELECT`/`WITH` only (writes rejected), an injected `LIMIT`, and a read-only
-  SQLite connection (`mode=ro` + `PRAGMA query_only`). Even a buggy query can't
-  mutate the database.
-- **Step cap, retries, timeouts** — the loop is bounded; the SDK retries
-  transient API errors with backoff; queries have a runaway backstop.
-- **Tracing + cost accounting** (`tracing.py`) — every LLM/tool step is a timed
-  span with token counts and an estimated USD cost.
+  SQLite connection (`mode=ro` + `PRAGMA query_only`). A buggy query can't mutate
+  the database.
+- **Bounded** — hard step cap, per-call retries, and a runaway-query backstop.
+- **Tracing + accounting** (`tracing.py`) — every step is a timed span with token
+  counts (shown in the demos).
 
-## How it's measured
+The **naive baseline** (`naive.py`) is the control: full schema in the prompt,
+one query, executed once, no recovery.
 
-The eval set (`data/eval_set.jsonl`) is 35 graded questions. The metric is
-**execution accuracy** (`evals/metrics.py`): run the gold and predicted queries
-and compare result sets. It's deliberately robust to two harmless ways a
-free-forming model differs from the gold SQL, so it measures *correctness*, not
-phrasing:
+### One backend, swappable
 
-- **extra columns** — the gold result must be a *projection* of the predicted
-  result (a model that returns the answer plus an extra `id` column still counts);
-- **row order** — compared as a multiset, except for top-N questions (`ORDER BY`
-  + `LIMIT`) where order is part of the answer.
+A normalized interface (`llm/base.py`) keeps the agent backend-agnostic. Today
+there's one backend — **Claude via the `claude` CLI** (no API key; the CLI
+returns text, so the agent is driven with a JSON-action protocol). A local
+**Ollama** backend is stubbed on the roadmap and drops in without touching the
+agent or eval code.
 
-The harness also records p50/p95 latency, step count, tokens, and USD. Re-score
-saved runs against the current metric with `python -m evals.rescore` (no new API
-calls).
+### Tested without burning tokens
 
-**Tested deterministically, no key required.** `tests/test_agent_loop.py` drives
-the agent loop with a scripted LLM double (`tests/fakes.py`) over complex
-multi-join / CTE / window-function questions and asserts it recovers from an
-injected error and lands on a correct, executing query — and that speed/token
-metrics are recorded. `tests/test_smoke.py` is a smoke test that runs the real
-Claude backend and checks it produces valid, executing SQL (auto-skipped when the
-`claude` CLI isn't on PATH, so the offline suite stays green in CI).
+`tests/test_agent_loop.py` drives the loop with a scripted LLM double
+(`tests/fakes.py`) over complex multi-join / CTE / window questions and asserts it
+recovers from an injected error and lands on a correct query — deterministic, no
+API calls. `tests/test_smoke.py` runs the real backend when the `claude` CLI is
+present (auto-skips otherwise).
 
-## Backend
+---
 
-One normalized interface (`src/llm_sql_agent/llm/base.py`); the agent and eval
-code are backend-agnostic.
+## Run it
 
-| Backend | Status | Notes |
-|---|---|---|
-| `anthropic` | ✅ default | Claude, reached through the local **`claude` CLI** (`claude -p`) — **no API key**, runs on your Claude Code login. Model via `LLM_MODEL` (`claude-opus-4-8` default; `claude-haiku-4-5` for the comparison). The CLI returns text, so the agent is driven with a JSON-action protocol rather than native `tool_use` blocks. |
-| `ollama` | 🟡 roadmap | Local open models. Shipped as a documented stub — the interface and tool registry are designed so it drops in with no changes elsewhere. |
-
-> **On token/cost numbers:** because the backend goes through the `claude` CLI,
-> reported tokens/USD include the CLI's own context overhead and aren't a clean
-> measure of the agent's own usage. **Accuracy and step count are the meaningful
-> axes** in the results below.
-
-## Quick start
-
-**No API key.** The only requirement is the
-[`claude` CLI](https://docs.claude.com/en/docs/claude-code) installed and logged
-in — the backend runs on your Claude Code session.
+**No API key** — just the [`claude` CLI](https://docs.claude.com/en/docs/claude-code)
+installed and logged in.
 
 ```bash
 make setup        # venv + install (no LLM SDK; the claude CLI is the backend)
 make db           # build the deterministic SQLite database
-make test         # offline suite (real-backend smoke test auto-skips if no claude CLI)
-make eval         # naive-vs-agent benchmark → table + charts
-make compare      # benchmark Opus 4.8 vs Haiku 4.5 → comparison chart
-make demos        # render the 3 showcase demo GIFs (needs `agg`)
-make demo         # one live trace in the terminal
+make demo         # live one-shot-vs-agent showcase on one question
+make test         # offline suite (smoke test auto-skips without the claude CLI)
+
+make eval         # full 35-question benchmark + charts
+make compare      # Opus 4.8 vs Haiku 4.5 + comparison chart
+make demos        # re-render the demo GIFs (needs `agg`)
 ```
 
-Pick a model: `make eval MODEL=claude-haiku-4-5`.
+Pick a model anywhere with `MODEL=claude-haiku-4-5` (e.g. `make eval MODEL=...`).
 
-Charts land in `results/` as PNGs. On WSL, view them with
-`explorer.exe results\accuracy.png`; on Linux/macOS use `xdg-open` / `open`.
+---
 
-## Layout
+## Notes
 
-```
-src/llm_sql_agent/
-  agent.py        agentic loop (tool-calling + self-repair)
-  naive.py        one-shot baseline
-  guardrails.py   read-only SELECT validation + LIMIT injection
-  db.py           read-only SQLite access
-  tracing.py      span tracing + token/cost accounting
-  tools/          list_tables / describe_table / run_sql + schemas
-  llm/            base interface; anthropic backend; ollama (roadmap stub)
-data/             schema.sql, deterministic seed.py, eval_set.jsonl (35 questions)
-evals/            harness.py, metrics.py, plot.py
-scripts/          record_demo.py, render_demos.py (asciicast -> GIF, no root)
-tests/            guardrails, tools, metrics, agent-loop (scripted), real smoke
-```
+> **Token/cost figures** shown in the demos go through the `claude` CLI, so they
+> include the CLI's own context overhead — read them as relative, not as the
+> agent's raw API cost. **Accuracy and step count are the meaningful axes.**
 
-## Roadmap
-
-- **Local Ollama backend** — open-model runs with no key/cost (stub in place).
-- **LLM-judge eval track** — score the agent's natural-language answer, not just
-  the SQL result set.
-- **More failure modes in the eval set** — ambiguous questions, schema-change
-  robustness, deeper multi-step reasoning.
+- The database (`data/seed.py`) is seeded from a fixed RNG, so results are
+  reproducible. The 35-question eval set lives in `data/eval_set.jsonl`.
+- Demos are deliberately tiny (Haiku, 1–2 questions) to keep them cheap to
+  regenerate. Generated charts/JSON are gitignored; only the committed demo GIFs
+  are kept.
+- **Roadmap:** local Ollama backend; an LLM-judge eval track (grade the answer,
+  not just the result set); more failure modes in the eval set.

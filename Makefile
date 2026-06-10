@@ -1,10 +1,9 @@
 # llm-sql-agent — one-command reproducibility.
 #
-# Quick start (needs ANTHROPIC_API_KEY — put it in a .env file at the repo root):
-#   make setup && make db && make eval && make demos
+# No API key: the Claude backend uses your local `claude` CLI login.
+#   make setup && make db && make demo
 #
-# Use a cheaper model:
-#   make eval MODEL=claude-sonnet-4-6
+# Pick a model:  make eval MODEL=claude-haiku-4-5
 
 PY      := python3
 VENV    := .venv
@@ -12,7 +11,6 @@ BIN     := $(VENV)/bin
 PYTHON  := $(BIN)/python
 PIP     := $(BIN)/pip
 
-# Override on the command line, e.g. `make eval PROVIDER=anthropic MODEL=claude-sonnet-4-6`
 PROVIDER ?= anthropic
 MODEL    ?=
 
@@ -21,18 +19,15 @@ MODEL    ?=
 .PHONY: help
 help:
 	@echo "Targets:"
-	@echo "  setup       Create venv and install the package + deps"
-	@echo "  db          Build the seeded SQLite database (deterministic)"
-	@echo "  eval        Run the naive-vs-agent benchmark against Claude + render charts"
-	@echo "  compare     Benchmark Opus 4.8 vs Haiku 4.5 and render the comparison chart"
-	@echo "  chart       Render results/*.png from the latest results"
-	@echo "  test        Run the pytest suite (real-backend smoke test auto-skips w/o key)"
-	@echo "  demo        Live single-question trace (reasoning -> tools -> answer)"
-	@echo "  demos       Render results/demo_<id>.gif for the 3 showcase questions (needs agg)"
-	@echo "  tour        Render a tiny demo GIF for every command (db/test/eval/compare; needs agg)"
-	@echo "  gif         Record results/demo.gif for the default demo question (needs agg)"
-	@echo "  tape        Record results/demo.gif from demo.tape (needs VHS)"
-	@echo "  clean       Remove venv, generated db, and caches"
+	@echo "  setup     Create venv and install the package + deps"
+	@echo "  db        Build the seeded SQLite database (deterministic)"
+	@echo "  demo      Live one-shot-vs-agent showcase on one question"
+	@echo "  eval      Naive-vs-agent benchmark (all 35 questions) + charts"
+	@echo "  compare   Benchmark Opus 4.8 vs Haiku 4.5 + comparison chart"
+	@echo "  test      Run the pytest suite (real-backend smoke test auto-skips w/o claude CLI)"
+	@echo "  demos     Render the demo GIFs: showcase / recovery / eval / compare (needs agg)"
+	@echo "  tape      Record results/demo.gif from demo.tape (needs VHS)"
+	@echo "  clean     Remove venv, generated db, and caches"
 
 $(VENV):
 	$(PY) -m venv $(VENV)
@@ -41,11 +36,15 @@ $(VENV):
 setup: $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -e ".[dev]"
-	@echo "Setup complete (uses the local \`claude\` CLI, no API key). Next: make db && make eval"
+	@echo "Setup complete (uses the local \`claude\` CLI, no API key). Next: make db && make demo"
 
 .PHONY: db
 db:
 	$(PYTHON) -m data.seed
+
+.PHONY: demo
+demo:
+	$(PYTHON) scripts/showcase.py --id h15 --model claude-haiku-4-5
 
 .PHONY: eval
 eval:
@@ -66,26 +65,10 @@ chart:
 test:
 	$(BIN)/pytest -q
 
-.PHONY: demo
-demo:
-	$(PYTHON) -m llm_sql_agent.cli ask "Total profit per category for completed orders, where profit = quantity * (unit_price - cost)."
-
 .PHONY: demos
 demos:
 	@command -v agg >/dev/null || { echo "agg not found. Install: https://github.com/asciinema/agg/releases (single static binary, no root)"; exit 1; }
-	$(PYTHON) scripts/render_demos.py
-
-.PHONY: tour
-tour:
-	@command -v agg >/dev/null || { echo "agg not found. Install: https://github.com/asciinema/agg/releases (single static binary, no root)"; exit 1; }
 	$(PYTHON) scripts/render_all.py
-
-.PHONY: gif
-gif:
-	@command -v agg >/dev/null || { echo "agg not found. Install: https://github.com/asciinema/agg/releases (single static binary, no root)"; exit 1; }
-	$(PYTHON) scripts/record_demo.py results/demo.cast $(PYTHON) -m llm_sql_agent.cli ask "Total profit per category for completed orders, where profit = quantity * (unit_price - cost)."
-	agg --theme monokai --font-size 16 --idle-time-limit 3 --last-frame-duration 14 results/demo.cast results/demo.gif
-	@echo "Wrote results/demo.gif"
 
 .PHONY: tape
 tape:
