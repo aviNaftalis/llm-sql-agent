@@ -15,39 +15,50 @@ agent loop. This repo builds that **two ways** — a **naive** one-shot prompt a
 > multiple steps and repairs its own mistakes. The whole point is to quantify the
 > gap.
 
-## Demo
+## Demos
 
-Three complex questions, each answered live by the agent (schema inspection →
-query → answer) on **Claude Opus 4.8**. Rendered with `make demos`.
+Every command the repo runs, captured as a GIF. The runs below are deliberately
+**tiny** — the agent showcases use 3 questions, and the benchmark/compare demos
+use just **2 questions** (1 easy + 1 hard), on **Haiku where the model doesn't
+matter** — so they're cheap to regenerate. The full benchmark is 35 questions
+(`make eval` / `make compare`).
 
-**1. Profit per category** — multi-join + arithmetic
+### The agent on complex SQL (Opus 4.8) — `make demos`
+
+Each: schema inspection → query → answer. Repairs on error when one occurs.
+
+**Profit per category** — multi-join + arithmetic
 ![profit per category](results/demo_h02.gif)
 
-**2. Best-selling product within each category** — window function + ranking (CTE)
+**Best-selling product within each category** — window function + ranking (CTE)
 ![best seller per category](results/demo_h13.gif)
 
-**3. Above-average-spending customers** — CTE + subquery comparison
+**Above-average-spending customers** — CTE + subquery comparison
 ![above-average spenders](results/demo_h06.gif)
 
-## Results
+### Every command, end to end — `make tour`
 
-<!-- RESULTS -->
-_Run `make eval` to generate `results/accuracy.png` and `results/latency_tokens.png`._
+**Build the seeded database** — `make db`
+![build database](results/demo_db.gif)
+
+**Run the test suite** — `make test`
+![tests](results/demo_test.gif)
+
+**Benchmark naive vs. agent** — `make eval` (tiny 2-question run; per-tier accuracy / speed / tokens)
+![benchmark](results/demo_eval.gif)
+
+**Compare Opus 4.8 vs. Haiku 4.5** — `make compare` (tiny 2-question run)
+![model comparison](results/demo_compare.gif)
+
+## What the benchmark measures
 
 `make eval` runs all 35 graded questions (10 easy / 10 medium / 15 hard) twice —
 naive and agent — and prints a per-tier table of **accuracy** (execution accuracy
 + agent repair rate), **speed** (p95 latency, steps), and **cost** (tokens, USD),
-writing `results/benchmark_summary.json`. The agent trades more tokens and steps
-for higher accuracy — the production trade-off this project is about.
-
-### Model comparison: Opus 4.8 vs. Haiku 4.5
-
-`make compare` runs the whole benchmark on two models and charts where the
-capability gap actually shows up (typically the hard tier — joins, CTEs, window
-functions), and what the agent loop recovers on the weaker model.
-
-<!-- COMPARE -->
-_Run `make compare` to generate `results/model_comparison.png`._
+writing `results/benchmark_summary.json` and charts. `make compare` runs it on two
+models to show where the capability gap shows up (typically the hard tier) and
+what the agent loop recovers on the weaker model. (The demos above show both at
+small scale.)
 
 ## The two approaches
 

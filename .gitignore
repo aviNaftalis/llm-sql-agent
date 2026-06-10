@@ -14,3 +14,8 @@ data/shop.db
 
 # Recorder intermediate (regenerable via `make gif`)
 results/*.cast
+
+# Generated benchmark charts + result JSON (regenerable via `make eval`/`make compare`).
+# Committed demo GIFs (results/demo_*.gif) are kept — only these are ignored.
+results/*.png
+results/*.json

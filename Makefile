@@ -29,6 +29,7 @@ help:
 	@echo "  test        Run the pytest suite (real-backend smoke test auto-skips w/o key)"
 	@echo "  demo        Live single-question trace (reasoning -> tools -> answer)"
 	@echo "  demos       Render results/demo_<id>.gif for the 3 showcase questions (needs agg)"
+	@echo "  tour        Render a tiny demo GIF for every command (db/test/eval/compare; needs agg)"
 	@echo "  gif         Record results/demo.gif for the default demo question (needs agg)"
 	@echo "  tape        Record results/demo.gif from demo.tape (needs VHS)"
 	@echo "  clean       Remove venv, generated db, and caches"
@@ -73,6 +74,11 @@ demo:
 demos:
 	@command -v agg >/dev/null || { echo "agg not found. Install: https://github.com/asciinema/agg/releases (single static binary, no root)"; exit 1; }
 	$(PYTHON) scripts/render_demos.py
+
+.PHONY: tour
+tour:
+	@command -v agg >/dev/null || { echo "agg not found. Install: https://github.com/asciinema/agg/releases (single static binary, no root)"; exit 1; }
+	$(PYTHON) scripts/render_all.py
 
 .PHONY: gif
 gif:
