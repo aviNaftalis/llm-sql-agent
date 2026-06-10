@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Local secrets
+.env
+
+# Generated database (rebuilt deterministically via `make db`)
+data/shop.db

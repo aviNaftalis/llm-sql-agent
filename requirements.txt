@@ -1,0 +1,11 @@
+# Runtime + dev dependencies. `make setup` installs the package itself (editable)
+# plus these. The mock backend needs none of the LLM SDKs — `anthropic` is only
+# required for `make eval-real PROVIDER=anthropic`.
+sqlparse>=0.5
+rich>=13.0
+matplotlib>=3.7
+pytest>=7.4
+
+# Real-model backend (optional; keyless mock runs don't need it):
+#   anthropic>=0.40
+# A local Ollama backend is planned (see README roadmap) and needs no extra deps.
