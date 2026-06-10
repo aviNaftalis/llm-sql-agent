@@ -11,3 +11,6 @@ dist/
 
 # Generated database (rebuilt deterministically via `make db`)
 data/shop.db
+
+# Recorder intermediate (regenerable via `make gif`)
+results/demo.cast

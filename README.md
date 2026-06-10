@@ -13,6 +13,14 @@ production agent — and benchmarks them on a ground-truth eval set across
 It runs **with zero API keys** (a deterministic mock backend), and against a real
 model (Claude) when you have a key.
 
+## Demo
+
+![agent demo](results/demo.gif)
+
+The agent inspects the schema, runs a query, **hits a SQL error, repairs it**, and
+answers — `make demo`, no API key. (Regenerate the GIF with `make gif`, or
+`make tape` if you have [VHS](https://github.com/charmbracelet/vhs).)
+
 ## Results
 
 ![accuracy: naive vs. agent](results/accuracy.png)
@@ -99,9 +107,14 @@ No API key needed:
 make setup        # venv + install
 make db           # build the deterministic SQLite database
 make eval         # run the benchmark (mock) and render charts
-make demo         # live single-question trace
+make demo         # live single-question trace (text)
 make test         # full suite incl. benchmark-as-tests
+make gif          # record results/demo.gif (needs `agg`; no root)
 ```
+
+Charts land in `results/` as PNGs. On WSL, view them with
+`explorer.exe results\accuracy.png` (or open the `results/` folder in Explorer);
+on Linux/macOS use `xdg-open` / `open`.
 
 A real run (needs `ANTHROPIC_API_KEY`):
 

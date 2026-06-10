@@ -28,6 +28,7 @@ help:
 	@echo "  chart       Render results/*.png from the latest results"
 	@echo "  test        Run the pytest suite (incl. the benchmark-as-tests)"
 	@echo "  demo        Live single-question trace (reasoning -> tools -> answer)"
+	@echo "  tape        Record results/demo.gif from demo.tape (needs VHS)"
 	@echo "  clean       Remove venv, generated db, and caches"
 
 $(VENV):
@@ -64,6 +65,19 @@ test:
 .PHONY: demo
 demo:
 	$(PYTHON) -m llm_sql_agent.cli ask "Top 3 products by revenue in 2024 (completed orders), with category"
+
+.PHONY: tape
+tape:
+	@command -v vhs >/dev/null || { echo "VHS not found. Install: https://github.com/charmbracelet/vhs"; exit 1; }
+	vhs demo.tape
+	@echo "Wrote results/demo.gif"
+
+.PHONY: gif
+gif:
+	@command -v agg >/dev/null || { echo "agg not found. Install: https://github.com/asciinema/agg/releases (single static binary, no root)"; exit 1; }
+	$(PYTHON) scripts/record_demo.py results/demo.cast $(MAKE) demo
+	agg --theme monokai --font-size 16 --idle-time-limit 1 --last-frame-duration 4 results/demo.cast results/demo.gif
+	@echo "Wrote results/demo.gif"
 
 .PHONY: clean
 clean:
