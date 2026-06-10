@@ -46,6 +46,15 @@ naive and agent — and prints a per-tier table of **accuracy** (execution accur
 writing `results/benchmark_summary.json`. The agent trades more tokens and steps
 for higher accuracy — the production trade-off this project is about.
 
+### Model comparison: Opus 4.8 vs. Haiku 4.5
+
+`make compare` runs the whole benchmark on two models and charts where the
+capability gap actually shows up (typically the hard tier — joins, CTEs, window
+functions), and what the agent loop recovers on the weaker model.
+
+<!-- COMPARE -->
+_Run `make compare` to generate `results/model_comparison.png`._
+
 ## The two approaches
 
 ### Naive baseline (`src/llm_sql_agent/naive.py`)
@@ -107,6 +116,7 @@ make setup        # venv + install
 make db           # build the deterministic SQLite database
 make test         # offline suite (real-backend smoke test auto-skips)
 make eval         # naive-vs-agent benchmark → table + charts
+make compare      # benchmark Opus 4.8 vs Haiku 4.5 → comparison chart
 make demos        # render the 3 showcase demo GIFs (needs `agg`)
 make demo         # one live trace in the terminal
 ```

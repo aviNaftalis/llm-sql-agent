@@ -24,6 +24,7 @@ help:
 	@echo "  setup       Create venv and install the package + deps"
 	@echo "  db          Build the seeded SQLite database (deterministic)"
 	@echo "  eval        Run the naive-vs-agent benchmark against Claude + render charts"
+	@echo "  compare     Benchmark Opus 4.8 vs Haiku 4.5 and render the comparison chart"
 	@echo "  chart       Render results/*.png from the latest results"
 	@echo "  test        Run the pytest suite (real-backend smoke test auto-skips w/o key)"
 	@echo "  demo        Live single-question trace (reasoning -> tools -> answer)"
@@ -49,6 +50,12 @@ db:
 eval:
 	$(PYTHON) -m evals.harness --provider $(PROVIDER) $(if $(MODEL),--model $(MODEL),)
 	$(MAKE) chart
+
+.PHONY: compare
+compare:
+	$(PYTHON) -m evals.harness --provider anthropic --model claude-opus-4-8
+	$(PYTHON) -m evals.harness --provider anthropic --model claude-haiku-4-5
+	$(PYTHON) -m evals.compare
 
 .PHONY: chart
 chart:

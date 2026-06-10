@@ -114,13 +114,18 @@ def main(argv: list[str] | None = None) -> int:
     summary = metrics.aggregate(records, settings.provider, settings.model)
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    with open(os.path.join(RESULTS_DIR, "eval_results.json"), "w") as f:
-        json.dump({"summary": summary, "records": records}, f, indent=2)
-    with open(os.path.join(RESULTS_DIR, "benchmark_summary.json"), "w") as f:
-        json.dump(summary, f, indent=2)
+    slug = settings.model.replace("/", "-")
+    payload = {"summary": summary, "records": records}
+    # Latest run (consumed by plot.py) + a per-model copy (consumed by compare.py).
+    for path in ("eval_results.json", f"eval_results_{slug}.json"):
+        with open(os.path.join(RESULTS_DIR, path), "w") as f:
+            json.dump(payload, f, indent=2)
+    for path in ("benchmark_summary.json", f"summary_{slug}.json"):
+        with open(os.path.join(RESULTS_DIR, path), "w") as f:
+            json.dump(summary, f, indent=2)
 
     _print_table(summary)
-    print(f"\nWrote {RESULTS_DIR}/eval_results.json and benchmark_summary.json")
+    print(f"\nWrote {RESULTS_DIR}/summary_{slug}.json (+ benchmark_summary.json)")
     return 0
 
 
