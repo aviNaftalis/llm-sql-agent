@@ -18,22 +18,16 @@ agent loop. This repo builds that **two ways** — a **naive** one-shot prompt a
 ## Demo
 
 Three complex questions, each answered live by the agent (schema inspection →
-query → observe error → **self-repair** → answer). Rendered with `make demos`:
+query → answer) on **Claude Opus 4.8**. Rendered with `make demos`.
 
-**1. Profit per category** (multi-join + arithmetic)
+**1. Profit per category** — multi-join + arithmetic
+![profit per category](results/demo_h02.gif)
 
-<!-- DEMO:h02 -->
-_Run `make demos` to generate `results/demo_h02.gif`._
+**2. Best-selling product within each category** — window function + ranking (CTE)
+![best seller per category](results/demo_h13.gif)
 
-**2. Best-selling product within each category** (window function + ranking)
-
-<!-- DEMO:h13 -->
-_Run `make demos` to generate `results/demo_h13.gif`._
-
-**3. Above-average-spending customers** (CTE + subquery comparison)
-
-<!-- DEMO:h06 -->
-_Run `make demos` to generate `results/demo_h06.gif`._
+**3. Above-average-spending customers** — CTE + subquery comparison
+![above-average spenders](results/demo_h06.gif)
 
 ## Results
 
@@ -101,16 +95,22 @@ code are backend-agnostic.
 
 | Backend | Status | Notes |
 |---|---|---|
-| `anthropic` | ✅ default | Claude via the Messages API with native tool-use. `claude-opus-4-8` by default; `LLM_MODEL=claude-sonnet-4-6` for a cheaper run. |
+| `anthropic` | ✅ default | Claude via the Messages API with **native tool-use**. `claude-opus-4-8` by default; `LLM_MODEL=claude-sonnet-4-6` for a cheaper run. Clean token/cost accounting. |
+| `claude_cli` | ✅ | Claude via the local **`claude` CLI** (`claude -p`) — **no API key**, uses your Claude Code login. Drives the agent with a JSON-action protocol instead of native tool-use. The demo GIFs above were generated this way. (Token/cost figures include the CLI's own context overhead, so use `anthropic` for representative cost numbers.) |
 | `ollama` | 🟡 roadmap | Local models, no key/cost. Shipped as a documented stub — the interface and tool registry are designed so it drops in with no changes elsewhere. |
 
 ## Quick start
 
-Requires an Anthropic API key. Put it in a `.env` file at the repo root (see
-`.env.example`); it's loaded automatically.
+Two ways to authenticate:
+
+- **API key** — put `ANTHROPIC_API_KEY=sk-ant-...` in a `.env` file at the repo
+  root (see `.env.example`); it's loaded automatically. Uses the `anthropic`
+  backend (native tool-use, clean cost accounting).
+- **No key** — if you have the [`claude` CLI](https://docs.claude.com/en/docs/claude-code)
+  logged in, set `LLM_PROVIDER=claude_cli` and skip the key entirely.
 
 ```bash
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env   # or: export LLM_PROVIDER=claude_cli
 
 make setup        # venv + install
 make db           # build the deterministic SQLite database

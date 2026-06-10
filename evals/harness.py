@@ -88,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--provider", default=None)
     parser.add_argument("--model", default=None)
     parser.add_argument("--limit", type=int, default=None, help="run only the first N questions")
+    parser.add_argument("--ids", default=None, help="comma-separated question ids to run")
     args = parser.parse_args(argv)
 
     settings = load_settings(provider=args.provider, model=args.model)
@@ -100,7 +101,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     all_items = load_eval_set()
-    items = all_items[: args.limit] if args.limit else all_items
+    if args.ids:
+        wanted = [s.strip() for s in args.ids.split(",")]
+        items = [it for it in all_items if it["id"] in wanted]
+    elif args.limit:
+        items = all_items[: args.limit]
+    else:
+        items = all_items
     client = make_client(settings)
 
     print(f"Running {len(items)} questions on provider={settings.provider} "

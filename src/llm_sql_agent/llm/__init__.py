@@ -10,12 +10,15 @@ def make_client(settings) -> LLMClient:
     if provider == "anthropic":
         from .anthropic_client import AnthropicClient
         return AnthropicClient(model=settings.model, settings=settings)
+    if provider == "claude_cli":
+        from .claude_cli_client import ClaudeCLIClient
+        return ClaudeCLIClient(model=settings.model, settings=settings)
     if provider == "ollama":
         from .ollama_client import OllamaClient
         return OllamaClient(model=settings.model, settings=settings)
     raise ValueError(
         f"unknown provider: {provider!r}. Supported: 'anthropic' (default), "
-        "'ollama' (roadmap)."
+        "'claude_cli' (uses the local Claude Code CLI, no API key), 'ollama' (roadmap)."
     )
 
 

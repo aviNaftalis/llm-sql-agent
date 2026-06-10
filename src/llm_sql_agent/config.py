@@ -26,6 +26,7 @@ PRICES: dict[str, tuple[float, float]] = {
 
 _DEFAULT_MODEL = {
     "anthropic": "claude-opus-4-8",
+    "claude_cli": "claude-opus-4-8",  # via the local Claude Code CLI, no API key
     "ollama": "llama3.1",  # roadmap
 }
 
