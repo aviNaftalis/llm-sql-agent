@@ -73,20 +73,23 @@ def _chart(summaries: list[dict], path: str) -> None:
         ax1.text(i + w / 2, av + 1, f"{av:.0f}", ha="center", fontsize=8)
     ax1.legend()
 
-    nbar = len(models)
-    group = 0.8
-    bw = group / nbar
-    palette = ["#4c72b0", "#dd8452", "#55a868", "#8172b3"]
-    for mi, s in enumerate(summaries):
-        vals = [s["agent"]["by_tier"].get(t, {}).get("accuracy", 0) * 100 for t in TIERS]
-        offs = [ti - group / 2 + bw * (mi + 0.5) for ti in range(len(TIERS))]
-        ax2.bar(offs, vals, bw, label=s["model"], color=palette[mi % len(palette)])
-    ax2.set_xticks(range(len(TIERS))); ax2.set_xticklabels(TIERS)
-    ax2.set_ylabel("agent execution accuracy (%)"); ax2.set_ylim(0, 105)
-    ax2.set_title("Agent accuracy by difficulty, by model")
-    ax2.legend()
+    # The agents hit the same accuracy, so the model story is cost: tokens per
+    # question (relative — both go through the CLI; the ratio is what matters).
+    tokens = [s["agent"]["overall"].get("avg_tokens", 0) for s in summaries]
+    bars = ax2.bar(list(x), tokens, w * 1.4, color="#4c72b0")
+    ax2.set_xticks(list(x)); ax2.set_xticklabels(models, rotation=10)
+    ax2.set_ylabel("agent tokens / question")
+    ax2.set_title("Cost at equal accuracy (lower is better)")
+    for rect, t in zip(bars, tokens):
+        ax2.text(rect.get_x() + rect.get_width() / 2, t, f"{t:.0f}",
+                 ha="center", va="bottom", fontsize=9)
+    if tokens and min(tokens) > 0:
+        cheapest = min(range(len(tokens)), key=lambda i: tokens[i])
+        ratio = max(tokens) / tokens[cheapest]
+        ax2.text(0.5, 0.92, f"≈{ratio:.0f}× cheaper", transform=ax2.transAxes,
+                 ha="center", fontsize=11, color="#55a868", fontweight="bold")
 
-    fig.suptitle("Model comparison — text-to-SQL agent")
+    fig.suptitle("Model comparison — same agent accuracy, very different cost")
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)

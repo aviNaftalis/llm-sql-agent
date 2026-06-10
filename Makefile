@@ -25,8 +25,6 @@ help:
 	@echo "  eval      Naive-vs-agent benchmark (all 35 questions) + charts"
 	@echo "  compare   Benchmark Opus 4.8 vs Haiku 4.5 + comparison chart"
 	@echo "  test      Run the pytest suite (real-backend smoke test auto-skips w/o claude CLI)"
-	@echo "  demos     Render the demo GIFs: showcase / recovery / eval / compare (needs agg)"
-	@echo "  tape      Record results/demo.gif from demo.tape (needs VHS)"
 	@echo "  clean     Remove venv, generated db, and caches"
 
 $(VENV):
@@ -64,17 +62,6 @@ chart:
 .PHONY: test
 test:
 	$(BIN)/pytest -q
-
-.PHONY: demos
-demos:
-	@command -v agg >/dev/null || { echo "agg not found. Install: https://github.com/asciinema/agg/releases (single static binary, no root)"; exit 1; }
-	$(PYTHON) scripts/render_all.py
-
-.PHONY: tape
-tape:
-	@command -v vhs >/dev/null || { echo "VHS not found. Install: https://github.com/charmbracelet/vhs"; exit 1; }
-	vhs demo.tape
-	@echo "Wrote results/demo.gif"
 
 .PHONY: clean
 clean:

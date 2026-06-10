@@ -1,25 +1,25 @@
-"""The naive baseline: one prompt, one query, executed once.
+"""The naive baseline: one blind prompt, one query, executed once.
 
-The whole schema is dumped into the prompt, the model returns a single SQL
-string, and we run it once with no introspection and no recovery. This is the
-control the production agent is measured against — it captures the failure modes
-(hallucinated columns, missed joins, no error recovery) that the agent fixes.
+Apples-to-apples with the agent: both start with only the question. The agent
+earns the schema by calling tools (`list_tables` / `describe_table`) and verifies
+by executing; the naive baseline gets neither — it writes one query from the
+question alone and runs it once, with no introspection and no recovery. So this
+isolates exactly what the agentic loop buys: schema discovery + execution
+feedback. It captures the failure modes (guessed table/column names, missed
+joins, no error recovery) that the agent fixes.
 """
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
-from . import db
 from .tools.registry import dispatch
 
-_SYSTEM = """You are a text-to-SQL assistant for a SQLite database.
+_SYSTEM = """You are a text-to-SQL assistant for a SQLite database. You are not
+given the schema — infer reasonable table and column names from the question.
 
-Schema:
-{schema}
-
-Given the user's question, reply with EXACTLY ONE SQLite SELECT query that
-answers it. Output only the SQL — no explanation, no markdown fences."""
+Reply with EXACTLY ONE SQLite SELECT query that answers the question. Output only
+the SQL — no explanation, no markdown fences."""
 
 
 @dataclass
@@ -39,9 +39,8 @@ def _extract_sql(text: str) -> str:
 
 
 def run_naive(client, settings, question: str, tracer) -> NaiveResult:
-    system = _SYSTEM.format(schema=db.schema_text(settings.db_path))
     messages = [{"role": "user", "content": question}]
-    resp = tracer.run_llm("naive", lambda: client.chat(system, messages, tools=None))
+    resp = tracer.run_llm("naive", lambda: client.chat(_SYSTEM, messages, tools=None))
     sql = _extract_sql(resp.text)
     text, is_error = tracer.run_tool(
         "run_sql", lambda: dispatch("run_sql", {"query": sql}, settings)

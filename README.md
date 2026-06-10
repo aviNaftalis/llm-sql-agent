@@ -46,19 +46,32 @@ exactly what the example below shows.
 
 ## Why agentic wins
 
-**Same question, two approaches.** The one-shot writes a confident query and
-returns the **wrong** answer. The agent runs its query, checks the result against
-the database, and returns the **right** one.
+Both approaches start with **only the question** — neither is handed the schema.
+The one-shot must guess table and column names and gets one try. The agent calls
+`describe_table` to learn the real schema and runs its query to check it. On a
+clean schema, easy questions tie; on anything needing real column names, the
+blind one-shot falls apart.
 
-![one-shot vs. agentic](results/demo_showcase.gif)
+![naive vs. agent accuracy per tier](results/accuracy.png)
 
-**Error recovery.** When a query *does* error, the agent reads the message,
-corrects the query, and keeps going — the one-shot has no second chance.
+**42% → 100%.** Easy questions (no columns needed) tie at 100%. On medium and
+hard, the one-shot guesses wrong and fails; the agent discovers the schema and
+verifies. Here's a real failure — *"total revenue per category for completed
+orders"* on Claude Haiku 4.5:
 
-![agent recovers from a SQL error](results/demo_recovery.gif)
+```sql
+-- NAIVE (one-shot, blind): guesses column/table names
+SELECT p.category, SUM(oi.quantity * oi.price)   -- ✗ no such column: oi.price
+FROM orders o JOIN order_items oi ON o.id = oi.order_id ...
 
-> Both demos run on **Claude Haiku 4.5** — a smaller model makes the gap visible.
-> The same loop runs on any Claude model (`make demo` to try it live).
+-- AGENT (after describe_table): uses the real columns
+SELECT p.category, SUM(oi.quantity * oi.unit_price)   -- ✓ correct
+FROM orders o JOIN order_items oi ON o.order_id = oi.order_id ...
+```
+
+The agent also **recovers from its own errors**: when a query fails to execute,
+the error is fed back and it repairs (Opus repaired 17% of the questions in the
+run above). Try it live: `make demo`.
 
 ---
 
@@ -67,17 +80,17 @@ corrects the query, and keeps going — the one-shot has no second chance.
 35 graded questions (10 easy / 10 medium / 15 hard), each run **twice** — naive
 and agent. The metric is **execution accuracy**: run the gold and predicted
 queries and compare result sets (robust to extra columns and to row order except
-for top-N). It also records repair rate, steps, latency, and tokens.
+for top-N). `make eval` produces the chart above; `make compare` runs it on two
+models:
 
-**`make eval`** — naive vs. agent, per tier *(demo is a tiny 2-question run; the real one does all 35)*:
+![Opus 4.8 vs Haiku 4.5](results/model_comparison.png)
 
-![benchmark](results/demo_eval.gif)
+Same result for both models — the agentic loop takes naive from 42% to **100%**.
+And since the loop, not raw model power, does the work here, **Haiku-as-agent
+matches Opus-as-agent at ~10× lower cost**.
 
-**`make compare`** — the same benchmark on two models, to see where the
-capability gap shows up (the hard tier) and what the agent loop recovers on the
-weaker model:
-
-![Opus 4.8 vs Haiku 4.5](results/demo_compare.gif)
+> Charts above are a 12-question run (4 per tier) on the `claude` CLI backend.
+> `make eval` / `make compare` run the full 35.
 
 ---
 
@@ -99,10 +112,10 @@ What makes it production-grade rather than a while-loop:
   the database.
 - **Bounded** — hard step cap, per-call retries, and a runaway-query backstop.
 - **Tracing + accounting** (`tracing.py`) — every step is a timed span with token
-  counts (shown in the demos).
+  counts (printed by `make demo`).
 
-The **naive baseline** (`naive.py`) is the control: full schema in the prompt,
-one query, executed once, no recovery.
+The **naive baseline** (`naive.py`) is the control: the question only, one query,
+executed once, no introspection and no recovery.
 
 ### One backend, swappable
 
@@ -133,9 +146,8 @@ make db           # build the deterministic SQLite database
 make demo         # live one-shot-vs-agent showcase on one question
 make test         # offline suite (smoke test auto-skips without the claude CLI)
 
-make eval         # full 35-question benchmark + charts
+make eval         # full 35-question benchmark + accuracy chart
 make compare      # Opus 4.8 vs Haiku 4.5 + comparison chart
-make demos        # re-render the demo GIFs (needs `agg`)
 ```
 
 Pick a model anywhere with `MODEL=claude-haiku-4-5` (e.g. `make eval MODEL=...`).
@@ -144,14 +156,14 @@ Pick a model anywhere with `MODEL=claude-haiku-4-5` (e.g. `make eval MODEL=...`)
 
 ## Notes
 
-> **Token/cost figures** shown in the demos go through the `claude` CLI, so they
-> include the CLI's own context overhead — read them as relative, not as the
-> agent's raw API cost. **Accuracy and step count are the meaningful axes.**
+> **Token/cost figures** go through the `claude` CLI, so they include the CLI's
+> own context overhead — read them as *relative* (the ~10× Haiku/Opus ratio is
+> real), not as the agent's raw API cost. **Accuracy is the meaningful axis.**
 
 - The database (`data/seed.py`) is seeded from a fixed RNG, so results are
   reproducible. The 35-question eval set lives in `data/eval_set.jsonl`.
-- Demos are deliberately tiny (Haiku, 1–2 questions) to keep them cheap to
-  regenerate. Generated charts/JSON are gitignored; only the committed demo GIFs
-  are kept.
+- The committed charts come from a 12-question run to keep cost down; `make eval`
+  / `make compare` run the full 35. Charts (`results/*.png`) are committed;
+  regenerable result JSON is gitignored.
 - **Roadmap:** local Ollama backend; an LLM-judge eval track (grade the answer,
   not just the result set); more failure modes in the eval set.
